@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte'
-  import { supabase } from '$lib/supabase'
-  let s = { total:0, active:0, wip:0, setlists:0 }
+  import { supabase } from '#lib/supabase'
+  let counts = {}
   onMount(async () => {
     const [a,b,c,d] = await Promise.all([
       supabase.from('songs').select('*',{count:'exact',head:true}),
@@ -9,19 +9,37 @@
       supabase.from('songs').select('*',{count:'exact',head:true}).eq('status','WIP'),
       supabase.from('setlists').select('*',{count:'exact',head:true}),
     ])
-    s = { total:a.count, active:b.count, wip:c.count, setlists:d.count }
+    counts = { total:a.count, active:b.count, wip:c.count, setlists:d.count }
   })
+  const cards = [
+    { label:'Total Songs',  key:'total',    color:'#fff',     href:'/songs' },
+    { label:'Active',       key:'active',   color:'#4ade80',  href:'/songs' },
+    { label:'WIP',          key:'wip',      color:'#facc15',  href:'/songs' },
+    { label:'Setlists',     key:'setlists', color:'#a78bfa',  href:'/setlists' },
+  ]
 </script>
-<h1 style="font-size:1.5rem;font-weight:700;margin-bottom:1.5rem">Dashboard</h1>
-<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:2rem">
-  {#each [{l:'Total Songs',v:s.total,c:'#fff'},{l:'Active',v:s.active,c:'#4ade80'},{l:'WIP',v:s.wip,c:'#facc15'},{l:'Setlists',v:s.setlists,c:'#a78bfa'}] as x}
-    <div style="background:#111827;border:1px solid #1f2937;border-radius:.75rem;padding:1.25rem">
-      <div style="font-size:2rem;font-weight:700;color:{x.c}">{x.v ?? '…'}</div>
-      <div style="color:#9ca3af;font-size:.875rem;margin-top:.25rem">{x.l}</div>
-    </div>
+<h1>Dashboard</h1>
+<div class="grid">
+  {#each cards as c}
+    <a class="card" href={c.href}>
+      <div class="val" style="color:{c.color}">{counts[c.key] ?? '…'}</div>
+      <div class="lbl">{c.label}</div>
+    </a>
   {/each}
 </div>
-<div style="display:flex;gap:.75rem">
-  <a href="/songs"    style="background:#1f2937;padding:.75rem 1.25rem;border-radius:.5rem">Browse Songs →</a>
-  <a href="/setlists" style="background:#1f2937;padding:.75rem 1.25rem;border-radius:.5rem">Setlists →</a>
+<div class="links">
+  <a href="/songs"    class="btn">Browse Songs →</a>
+  <a href="/setlists" class="btn">Setlists →</a>
 </div>
+<style>
+  h1{font-size:1.5rem;font-weight:700;margin-bottom:1.5rem}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:2rem}
+  .card{background:#0f172a;border:1px solid #1f2937;border-radius:.75rem;padding:1.25rem;display:block}
+  .card:hover{border-color:#374151}
+  .val{font-size:2.25rem;font-weight:700}
+  .lbl{color:#6b7280;font-size:.8rem;margin-top:.25rem}
+  .links{display:flex;gap:.75rem}
+  .btn{background:#1f2937;padding:.75rem 1.25rem;border-radius:.5rem;font-size:.875rem;color:#d1d5db}
+  .btn:hover{background:#374151}
+  @media(max-width:600px){.grid{grid-template-columns:repeat(2,1fr)}}
+</style>

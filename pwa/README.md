@@ -1,34 +1,56 @@
-# Shenanigans Studio Automation - Fadr Integration Patch
+# sv
 
-Uses a lawful local audio file. Spotify links are identifiers/metadata only and are not used as audio sources.
+Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
 
-## Fadr workflow
-The client requests a presigned upload URL, uploads the source file, creates/uses an asset, creates a stem task, polls task status, and downloads returned stem/MIDI assets. Fadr documents this overall workflow and the five primary stem outputs.
+## Creating a project
 
-## Setup
-1. Copy `.env.example` to your preferred environment configuration and set `FADR_API_KEY`.
-2. Verify the endpoint paths against the endpoint page for your Fadr account/API version. They are environment-configurable because the public tutorial describes endpoint operations but may not expose every current path in searchable documentation.
-3. Install Python dependencies: `python -m pip install -r requirements.txt`.
-4. Run:
+If you're seeing this, you've probably already done this step. Congrats!
 
-   `python scripts/shenanigans_studio_fadr.py --source "incoming/song.wav" --title "Song" --out "reaper-projects/Song"`
+```sh
+# create a new project
+npx sv create my-app
+```
 
-Or on Windows:
+To recreate this project with the same configuration:
 
-   `run_shenanigans_studio.cmd "incoming\song.wav" "Song" "reaper-projects\Song"`
+```sh
+# recreate this project
+npx sv@1.0.1 create --template minimal --no-types --install npm .
+```
 
-## Outputs
-- ORIGINAL
-- VOCALS
-- DRUMS
-- BASS
-- MELODIES
-- INSTRUMENTAL
-- CLICK
-- CUES
-- `.RPP`
-- `automation-result.json`
-- optional `x32-scene-requirements.json`
+## Adding features
 
-## Server/PWA
-Run `python automation/reaper_server.py`. The SvelteKit routes use `+server.js`, input validation, structured errors, timeouts, and retry handling. Long-running song processing is not automatically retried because repeating an upload/task can create duplicate Fadr work.
+Add features to your project with `sv add`:
+
+```sh
+npx sv add
+```
+
+For example, to add Tailwind CSS:
+
+```sh
+npx sv add tailwindcss
+```
+
+## Developing
+
+Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+
+```sh
+npm run dev
+
+# or start the server and open the app in a new browser tab
+npm run dev -- --open
+```
+
+## Building
+
+To create a production version of your app:
+
+```sh
+npm run build
+```
+
+You can preview the production build with `npm run preview`.
+
+> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
