@@ -1,0 +1,15 @@
+.env
+stems/
+midi/
+incoming/
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+.svelte-kit/
+build/
+*.bak
+*.rpp-bak
+.DS_Store
+Thumbs.db
+desktop.ini
