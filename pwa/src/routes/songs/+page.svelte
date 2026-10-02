@@ -1,9 +1,12 @@
 <script>
   import { onMount } from 'svelte'
   import { supabase } from '#lib/supabase'
-  let songs=[], search='', statusFilter='all', loading=true
+  let songs=[], search='', statusFilter='all', loading=true, err=''
   onMount(async () => {
-    const { data } = await supabase.from('songs').select('*').order('title')
+    const { data, error } = await supabase.from('songs').select('*').order('title')
+    console.log('songs data:', data)
+    console.log('songs error:', error)
+    if (error) err = error.message
     songs = data ?? []; loading = false
   })
   $: filtered = songs.filter(s =>
@@ -25,6 +28,10 @@
 </div>
 {#if loading}
   <p class="muted">Loading…</p>
+{:else if err}
+  <p style="color:#f87171">⚠️ Error: {err}</p>
+{:else if filtered.length === 0}
+  <p class="muted">No songs found. (Total in DB: {songs.length})</p>
 {:else}
   <p class="muted">{filtered.length} songs</p>
   <table>
