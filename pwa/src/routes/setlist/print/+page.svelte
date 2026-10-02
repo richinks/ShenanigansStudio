@@ -1,4 +1,4 @@
-<script>
+﻿<script>
   import { onMount } from 'svelte'
   import { supabase } from '#lib/supabase'
   import { page } from '$app/stores'
@@ -11,7 +11,7 @@
       .select('*, setlist_songs(position, songs(*))')
       .order('name')
     if (e) { error = e.message; loading = false; return }
-    setlists = data ?? []
+    setlists = data || []
     const qid = $page.url.searchParams.get('id')
     if (qid) select(qid)
     else if (setlists.length > 0) select(setlists[0].id)
@@ -20,40 +20,40 @@
 
   function select(id) {
     selectedId = id
-    setlist = setlists.find(s => s.id === id) ?? null
-    songs = (setlist?.setlist_songs ?? [])
-      .sort((a, b) => a.position - b.position)
-      .map(ss => ss.songs).filter(Boolean)
+    setlist = setlists.find(function(s){ return s.id === id }) || null
+    songs = (setlist && setlist.setlist_songs ? setlist.setlist_songs : [])
+      .sort(function(a,b){ return a.position - b.position })
+      .map(function(ss){ return ss.songs }).filter(Boolean)
   }
 
   function fmtDuration(sec) {
     if (!sec) return ''
-    return `${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}`
+    return Math.floor(sec/60) + ':' + String(sec%60).padStart(2,'0')
   }
 
   function totalRuntime() {
-    const t = songs.reduce((s, song) => s + (song.duration_sec ?? 0), 0)
+    var t = songs.reduce(function(s, song){ return s + (song.duration_sec || 0) }, 0)
     return fmtDuration(t)
   }
 
-  const doPrint = () => window.print()
+  function doPrint(){ window.print() }
 </script>
 
-<svelte:head><title>{setlist?.name ?? 'Setlist'} — Dirty Diaperz</title></svelte:head>
+<svelte:head><title>{setlist ? setlist.name : 'Setlist'} - Dirty Diaperz</title></svelte:head>
 
 <div class="screen-controls no-print">
   <div class="ctrl-row">
-    <select bind:value={selectedId} on:change={e => select(e.target.value)}>
+    <select bind:value={selectedId} on:change={function(e){ select(e.target.value) }}>
       {#each setlists as sl}<option value={sl.id}>{sl.name}</option>{/each}
     </select>
-    <button on:click={doPrint} class="print-btn">🖨️ Print / Save PDF</button>
-    <a href="/live" class="back">← Live Mode</a>
+    <button on:click={doPrint} class="print-btn">Print / Save PDF</button>
+    <a href="/live" class="back">Back to Live Mode</a>
   </div>
-  <p class="hint">Print dialog → Save as PDF to create a portable gig sheet</p>
+  <p class="hint">Print dialog - choose Save as PDF for a portable gig sheet</p>
 </div>
 
 {#if loading}
-  <p class="loading">Loading…</p>
+  <p class="loading">Loading...</p>
 {:else if error}
   <p class="err">{error}</p>
 {:else if setlist}
@@ -62,9 +62,9 @@
       <div class="band">Dirty Diaperz</div>
       <h1 class="setlist-name">{setlist.name}</h1>
       <div class="meta-row">
-        {#if setlist.gig_date}<span>📅 {new Date(setlist.gig_date).toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</span>{/if}
-        <span>🎵 {songs.length} songs</span>
-        {#if totalRuntime()}<span>⏱ ~{totalRuntime()} total</span>{/if}
+        {#if setlist.gig_date}<span>{new Date(setlist.gig_date).toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</span>{/if}
+        <span>{songs.length} songs</span>
+        {#if totalRuntime()}<span>~{totalRuntime()} total</span>{/if}
       </div>
       {#if setlist.notes}<p class="setlist-notes">{setlist.notes}</p>{/if}
     </header>
@@ -87,12 +87,12 @@
           <tr>
             <td class="col-num">{i + 1}</td>
             <td class="col-title"><strong>{song.title}</strong></td>
-            <td class="col-artist">{song.artist ?? ''}</td>
-            <td class="col-key">{song.key ?? ''}</td>
-            <td class="col-bpm">{song.click_bpm ?? ''}</td>
-            <td class="col-feel">{song.feel ?? ''}</td>
+            <td class="col-artist">{song.artist || ''}</td>
+            <td class="col-key">{song.key || ''}</td>
+            <td class="col-bpm">{song.click_bpm || ''}</td>
+            <td class="col-feel">{song.feel || ''}</td>
             <td class="col-dur">{fmtDuration(song.duration_sec)}</td>
-            <td class="col-notes">{song.notes ?? ''}</td>
+            <td class="col-notes">{song.notes || ''}</td>
           </tr>
         {/each}
       </tbody>
@@ -108,7 +108,7 @@
     <footer class="sheet-footer">
       <span>ShenanigansStudio</span>
       <span>Printed {new Date().toLocaleDateString()}</span>
-      <span>Confidential — band use only</span>
+      <span>Confidential - band use only</span>
     </footer>
   </div>
 {/if}
