@@ -211,6 +211,77 @@ def fx_list():
     files = [f.replace('.json','') for f in os.listdir(FX_DIR) if f.endswith('.json')]
     return jsonify({'presets': files})
 
+
+# ── X32 Meter Subscription + SSE ─────────────────────────────────────────────
+import struct, threading
+from flask import Response
+from pythonosc import dispatcher as osc_disp, server as osc_srv
+
+meter_state = {'ch': [0.0] * 32, 'bus': [0.0] * 16, 'lr': [0.0, 0.0]}
+_meter_lock = threading.Lock()
+
+def _handle_meter_blob(address, *args):
+    if not args:
+        return
+    blob = args[0]
+    if not isinstance(blob, (bytes, bytearray)):
+        return
+    count = len(blob) // 4
+    vals  = list(struct.unpack(f'<{count}f', blob[:count * 4]))
+    with _meter_lock:
+        if 'meters/1' in str(address):
+            meter_state['ch'] = (vals + [0.0] * 32)[:32]
+        elif 'meters/6' in str(address):
+            meter_state['bus'] = (vals + [0.0] * 16)[:16]
+
+def _meter_renew_loop():
+    import time
+    while True:
+        try:
+            if X32_OK:
+                _x32.send_message('/xremote', [])
+                _x32.send_message('/meters', ['/meters/1', 0])
+                _x32.send_message('/meters', ['/meters/6', 0])
+        except Exception:
+            pass
+        time.sleep(8)
+
+def _start_meter_server():
+    try:
+        d = osc_disp.Dispatcher()
+        d.set_default_handler(_handle_meter_blob)
+        srv = osc_srv.ThreadingOSCUDPServer(('0.0.0.0', 10024), d)
+        threading.Thread(target=_meter_renew_loop, daemon=True).start()
+        print('[METERS] OSC receiver on :10024')
+        srv.serve_forever()
+    except Exception as e:
+        print(f'[METERS] Could not start: {e}')
+
+threading.Thread(target=_start_meter_server, daemon=True).start()
+
+@app.route('/meters/stream')
+def meters_stream():
+    import json, time
+    def generate():
+        while True:
+            with _meter_lock:
+                payload = json.dumps({
+                    'ch':  [round(v, 4) for v in meter_state['ch'][:16]],
+                    'bus': [round(v, 4) for v in meter_state['bus'][:8]],
+                    'lr':  [round(v, 4) for v in meter_state['lr']]
+                })
+            yield f'data: {payload}\n\n'
+            time.sleep(0.1)
+    return Response(generate(), mimetype='text/event-stream',
+                    headers={'Cache-Control': 'no-cache',
+                             'X-Accel-Buffering': 'no',
+                             'Access-Control-Allow-Origin': '*'})
+
+@app.route('/meters/current')
+def meters_current():
+    with _meter_lock:
+        return jsonify(meter_state)
+
 if __name__ == '__main__':
     print('')
     print('  ShenanigansStudio Show API')
@@ -219,4 +290,5 @@ if __name__ == '__main__':
     print('  URL    : http://0.0.0.0:5000')
     print('')
     app.run(host='0.0.0.0', port=5000, debug=False)
+
 
