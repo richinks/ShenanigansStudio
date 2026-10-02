@@ -1,0 +1,9 @@
+@"
+[build]
+  base    = "pwa"
+  command = "npm run build"
+  publish = "build"
+
+[build.environment]
+  NODE_VERSION = "20"
+"@ | Set-Content -Path "D:\ShenanigansStudio\netlify.toml" -Encoding UTF8

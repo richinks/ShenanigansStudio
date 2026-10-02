@@ -117,6 +117,7 @@
     </div>
     <div class="hdr-actions">
       <button on:click={openAdd}>＋ Add Songs</button>
+      <button class="print-btn" on:click={() => window.print()} title="Print setlist">🖨 Print</button>
       <button class="del" on:click={deleteSetlist}>Delete Setlist</button>
     </div>
   </div>
@@ -192,6 +193,8 @@
   .notes{color:#9ca3af;font-size:.875rem;margin-bottom:1rem;background:#0f172a;padding:.75rem 1rem;border-radius:.5rem;border-left:3px solid #bf5500}
   .muted{color:#6b7280}
   .empty{margin-top:2rem;text-align:center}
+  .print-btn{background:#1f2937;color:#9ca3af;border:1px solid #374151;}
+  .print-btn:hover{color:#fff}
   .del{background:#7f1d1d;color:#fca5a5}
   .del:hover{background:#991b1b}
   .ghost{background:transparent;color:#6b7280;border:1px solid #374151}
@@ -237,4 +240,18 @@
   .add-btn{background:#5c1a00;color:#e8851a;border:none;padding:.3rem .65rem;border-radius:.35rem;cursor:pointer;font-size:1rem;font-weight:700;flex-shrink:0}
   .add-btn:hover:not(:disabled){background:#bf5500;color:#fff}
   .add-btn:disabled{opacity:.4}
+
+  @media print {
+    :global(nav), :global(header), .hdr-actions, .moves, .icon, .del, .print-btn { display: none !important }
+    :global(body) { background: #fff !important; color: #000 !important }
+    .header { margin-bottom: .5rem }
+    h1 { font-size: 1.2rem; color: #000 }
+    .meta { color: #444; font-size: .8rem }
+    .notes { background: #f5f5f5; border-left: 3px solid #bf5500; color: #333 }
+    .row { background: #fff !important; border: 1px solid #ccc !important; border-radius: 0 !important; padding: .35rem .5rem !important; break-inside: avoid }
+    .num, .title, .key, .bpm, .len, .status { color: #000 !important }
+    .muted { color: #555 !important }
+    .list { gap: .15rem }
+  }
+
 </style>
