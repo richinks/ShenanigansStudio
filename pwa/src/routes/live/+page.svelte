@@ -1,11 +1,11 @@
-<script>
+﻿<script>
   import { onMount, onDestroy } from 'svelte'
   import { supabase } from '#lib/supabase'
 
   let apiBase = '', showSettings = false, apiInput = ''
   let setlists = [], activeSetlist = null, songs = []
   let currentIdx = 0
-  let transport = { playing: false, paused: false, position: '0:00', bpm: '—' }
+  let transport = { playing: false, paused: false, position: '0:00', bpm: 'â€”' }
   let connected = false, connecting = false, apiErr = ''
   let pollTimer = null, loading = true`n  let recording = false
 
@@ -13,14 +13,27 @@
   $: prevSong    = songs[currentIdx - 1] ?? null
   $: nextSong    = songs[currentIdx + 1] ?? null
 
+
+  // Meters
+  let meters = { ch: Array(16).fill(0), bus: Array(8).fill(0), lr: [0,0] }
+  let meterSource = null
+  function startMeters() {
+    if (meterSource) meterSource.close()
+    meterSource = new EventSource(apiBase + '/meters/stream')
+    meterSource.onmessage = function(e) { try { meters = JSON.parse(e.data) } catch(x){} }
+    meterSource.onerror = function() { setTimeout(startMeters, 3000) }
+  }
+  function stopMeters() { if(meterSource){ meterSource.close(); meterSource = null } }
   onMount(async () => {
     apiBase  = localStorage.getItem('showApiBase') || 'http://localhost:5000'
     apiInput = apiBase
     await loadSetlists()
+    startMeters()
     startPoll()
     loading = false
   })
   onDestroy(() => clearInterval(pollTimer))
+  onDestroy(stopMeters)
 
   function startPoll() {
     clearInterval(pollTimer)
@@ -32,7 +45,7 @@
       const r = await fetch(${apiBase}/status, { signal: AbortSignal.timeout(1500) })
       if (!r.ok) throw new Error(r.statusText)
       const d = await r.json()
-      transport = { playing: d.playing, paused: d.paused, position: d.position, bpm: d.bpm ?? '—' }
+      transport = { playing: d.playing, paused: d.paused, position: d.position, bpm: d.bpm ?? 'â€”' }
       connected = true; apiErr = ''
     } catch (e) { connected = false; apiErr = e.message ?? 'Unreachable' }
   }
@@ -83,7 +96,7 @@
     const d = await api('/song/fx/save', 'POST', { title: currentSong.title })
     fxSaving = false
     if (d?.ok) { fxSaved = true; setTimeout(() => fxSaved = false, 3000) }
-    else alert('FX save failed — is the Show API running?')
+    else alert('FX save failed â€” is the Show API running?')
   }
   const play      = () => api('/transport/play')
   const pause     = () => api('/transport/pause')
@@ -100,15 +113,15 @@
   }
 
   function fmtDuration(sec) {
-    if (!sec) return '—'
+    if (!sec) return 'â€”'
     return ${Math.floor(sec/60)}:
   }
 </script>
 
-{#if recording}<div class="rec-indicator">⏺ RECORDING</div>{/if}`n<div class="conn-bar" class:ok={connected} class:bad={!connected}>
+{#if recording}<div class="rec-indicator">âº RECORDING</div>{/if}`n<div class="conn-bar" class:ok={connected} class:bad={!connected}>
   <span class="dot"></span>
-  {connected ? Show API connected —  : Show API offline — }
-  <button class="gear" on:click={() => { showSettings = !showSettings; apiInput = apiBase }}>⚙</button>
+  {connected ? Show API connected â€”  : Show API offline â€” }
+  <button class="gear" on:click={() => { showSettings = !showSettings; apiInput = apiBase }}>âš™</button>
 </div>
 
 {#if showSettings}
@@ -130,7 +143,7 @@
         {#each setlists as sl}<option value={sl.id}>{sl.name}</option>{/each}
       </select>
       <span class="count">{songs.length}</span>
-      <a href="/setlist/print{activeSetlist ? `?id=${activeSetlist.id}` : ``}" target="_blank" class="print-link" title="Print setlist">🖨️</a>
+      <a href="/setlist/print{activeSetlist ? `?id=${activeSetlist.id}` : ``}" target="_blank" class="print-link" title="Print setlist">ðŸ–¨ï¸</a>
     </div>
     <ul class="song-list">
       {#each songs as song, i}
@@ -138,7 +151,7 @@
           <span class="num">{i + 1}</span>
           <span class="info">
             <span class="t">{song.title}</span>
-            <span class="meta">{song.key ?? '?'} · {song.click_bpm ?? '?'} BPM</span>
+            <span class="meta">{song.key ?? '?'} Â· {song.click_bpm ?? '?'} BPM</span>
           </span>
           {#if song.x32_scene}<span class="scene">S{song.x32_scene}</span>{/if}
         </li>
@@ -153,19 +166,19 @@
         <h1 class="song-title">{currentSong.title}</h1>
         <p class="song-artist">{currentSong.artist ?? ''}</p>
         <div class="song-meta-grid">
-          <div class="meta-cell"><span class="label">Key</span><span class="value">{currentSong.key ?? '—'}</span></div>
-          <div class="meta-cell"><span class="label">Click BPM</span><span class="value">{currentSong.click_bpm ?? '—'}</span></div>
-          <div class="meta-cell"><span class="label">Feel</span><span class="value">{currentSong.feel ?? '—'}</span></div>
+          <div class="meta-cell"><span class="label">Key</span><span class="value">{currentSong.key ?? 'â€”'}</span></div>
+          <div class="meta-cell"><span class="label">Click BPM</span><span class="value">{currentSong.click_bpm ?? 'â€”'}</span></div>
+          <div class="meta-cell"><span class="label">Feel</span><span class="value">{currentSong.feel ?? 'â€”'}</span></div>
           <div class="meta-cell"><span class="label">Duration</span><span class="value">{fmtDuration(currentSong.duration_sec)}</span></div>
-          <div class="meta-cell"><span class="label">X32 Scene</span><span class="value">{currentSong.x32_scene ?? '—'}</span></div>
+          <div class="meta-cell"><span class="label">X32 Scene</span><span class="value">{currentSong.x32_scene ?? 'â€”'}</span></div>
           <div class="meta-cell"><span class="label">Count-in</span><span class="value">{currentSong.count_in ?? 4} beats</span></div>
         </div>
         {#if currentSong.notes}<div class="notes">{currentSong.notes}</div>{/if}
         <div class="fx-row">
           <button class="save-fx-btn" on:click={saveFx} disabled={fxSaving || !currentSong}>
-            {fxSaving ? 'Saving…' : fxSaved ? '✅ FX Saved!' : '💾 Save FX Preset'}
+            {fxSaving ? 'Savingâ€¦' : fxSaved ? 'âœ… FX Saved!' : 'ðŸ’¾ Save FX Preset'}
           </button>
-          <span class="fx-hint">Saves all track FX states for this song — auto-loaded on next cue</span>
+          <span class="fx-hint">Saves all track FX states for this song â€” auto-loaded on next cue</span>
         </div>
       </div>
     {:else}
@@ -173,42 +186,83 @@
     {/if}
 
     <div class="transport">
-      <div class="pos">{transport.position} · {transport.bpm} BPM</div>
+      <div class="pos">{transport.position} Â· {transport.bpm} BPM</div>
       <div class="controls">
-        <button class="nav" on:click={prev} disabled={currentIdx === 0 || !songs.length}>⏮</button>
-        <button class="ctrl stop" on:click={stop}>⏹</button>
-        <button class="ctrl play" on:click={play} disabled={transport.playing}>▶</button>
-        <button class="ctrl"      on:click={pause} disabled={!transport.playing}>⏸</button>
+        <button class="nav" on:click={prev} disabled={currentIdx === 0 || !songs.length}>â®</button>
+        <button class="ctrl stop" on:click={stop}>â¹</button>
+        <button class="ctrl play" on:click={play} disabled={transport.playing}>â–¶</button>
+        <button class="ctrl"      on:click={pause} disabled={!transport.playing}>â¸</button>
         <button class="ctrl rec" on:click={record} title={recording ? "Stop recording" : "Record"}>
-        {recording ? '⏹' : '⏺'}
+        {recording ? 'â¹' : 'âº'}
       </button>
-      <button class="nav" on:click={next} disabled={currentIdx >= songs.length-1 || !songs.length}>⏭</button>
+      <button class="nav" on:click={next} disabled={currentIdx >= songs.length-1 || !songs.length}>â­</button>
       </div>
       <div class="x32-row">
         <button class="x32-btn" on:click={recallX32} disabled={!currentSong?.x32_scene}>
-          🎚 Recall X32 Scene {currentSong?.x32_scene ?? '—'}
+          ðŸŽš Recall X32 Scene {currentSong?.x32_scene ?? 'â€”'}
         </button>
-        {#if connecting}<span class="muted small">sending…</span>{/if}
+        {#if connecting}<span class="muted small">sendingâ€¦</span>{/if}
       </div>
     </div>
 
     <div class="neighbours">
       {#if prevSong}
         <div class="neighbour prev" on:click={() => cueSong(currentIdx - 1)}>
-          <span class="dir">← PREV</span>
+          <span class="dir">â† PREV</span>
           <span class="nt">{prevSong.title}</span>
-          <span class="nm">{prevSong.key ?? '?'} · {prevSong.click_bpm ?? '?'} BPM</span>
+          <span class="nm">{prevSong.key ?? '?'} Â· {prevSong.click_bpm ?? '?'} BPM</span>
         </div>
       {:else}<div class="neighbour ghost"></div>{/if}
       {#if nextSong}
         <div class="neighbour next" on:click={() => cueSong(currentIdx + 1)}>
-          <span class="dir">NEXT →</span>
+          <span class="dir">NEXT â†’</span>
           <span class="nt">{nextSong.title}</span>
-          <span class="nm">{nextSong.key ?? '?'} · {nextSong.click_bpm ?? '?'} BPM</span>
+          <span class="nm">{nextSong.key ?? '?'} Â· {nextSong.click_bpm ?? '?'} BPM</span>
         </div>
       {:else}<div class="neighbour ghost"></div>{/if}
     </div>
-  </main>
+  
+  <div class="meter-strip">
+    <div class="meter-section">
+      <div class="meter-label">CH 1-16</div>
+      <div class="meter-bars">
+        {#each meters.ch as v, i}
+          <div class="meter-col">
+            <div class="meter-bar-wrap">
+              <div class="meter-bar" style="height:{Math.min(v*120,100)}%;background:{v>0.9?'#ef4444':v>0.7?'#f97316':'#22c55e'}"></div>
+            </div>
+            <div class="meter-ch">{i+1}</div>
+          </div>
+        {/each}
+      </div>
+    </div>
+    <div class="meter-section">
+      <div class="meter-label">BUS 1-8</div>
+      <div class="meter-bars">
+        {#each meters.bus as v, i}
+          <div class="meter-col">
+            <div class="meter-bar-wrap">
+              <div class="meter-bar" style="height:{Math.min(v*120,100)}%;background:{v>0.9?'#ef4444':v>0.7?'#f97316':'#818cf8'}"></div>
+            </div>
+            <div class="meter-ch">B{i+1}</div>
+          </div>
+        {/each}
+      </div>
+    </div>
+    <div class="meter-section">
+      <div class="meter-label">L/R</div>
+      <div class="meter-bars">
+        {#each ['L','R'] as side, i}
+          <div class="meter-col wide">
+            <div class="meter-bar-wrap">
+              <div class="meter-bar" style="height:{Math.min((meters.lr[i]||0)*120,100)}%;background:{(meters.lr[i]||0)>0.9?'#ef4444':'#a78bfa'}"></div>
+            </div>
+            <div class="meter-ch">{side}</div>
+          </div>
+        {/each}
+      </div>
+    </div>
+  </div></main>
 </div>
 
 <style>
@@ -285,7 +339,17 @@
   .fx-hint{font-size:.7rem;color:#4b5563;flex:1}
   .print-link{color:#6b7280;text-decoration:none;font-size:1rem;flex-shrink:0}
   .print-link:hover{color:#a78bfa}
-</style>
+
+  .meter-strip{display:flex;gap:1rem;background:#0d1117;border:1px solid #1f2937;border-radius:.75rem;padding:1rem;margin-top:.75rem;overflow-x:auto}
+  .meter-section{display:flex;flex-direction:column;gap:.5rem}
+  .meter-label{font-size:.65rem;color:#4b5563;text-transform:uppercase;letter-spacing:.08em;text-align:center}
+  .meter-bars{display:flex;gap:3px;align-items:flex-end;height:80px}
+  .meter-col{display:flex;flex-direction:column;align-items:center;gap:2px;width:14px}
+  .meter-col.wide{width:22px}
+  .meter-bar-wrap{width:100%;height:72px;background:#111827;border-radius:2px;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden}
+  .meter-bar{width:100%;border-radius:2px;transition:height 0.08s ease-out}
+  .meter-ch{font-size:.55rem;color:#374151;text-align:center;line-height:1}</style>
+
 
 
 
