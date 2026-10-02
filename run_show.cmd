@@ -4,6 +4,7 @@ cd /d D:\ShenanigansStudio
 echo.
 echo  ============================================
 echo   ShenanigansStudio Show API
+echo   X32 Rack: 192.168.1.5:10023
 echo   Controls REAPER + X32 from any LAN device
 echo  ============================================
 echo.

@@ -5,7 +5,7 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-X32_IP   = '192.168.1.200'   # <-- SET YOUR X32 RACK IP HERE
+X32_IP   = '192.168.1.5'   # Dirty Diaperz X32 Rack — static IP
 X32_PORT = 10023
 
 try:
@@ -123,7 +123,7 @@ if __name__ == '__main__':
     print('')
     print('  ShenanigansStudio Show API')
     print(f'  REAPER : {"ENABLED" if REAPER_OK else "DISABLED (pip install reapy-boost)"}')
-    print(f'  X32    : {"ENABLED - " + X32_IP if X32_OK else "DISABLED (pip install python-osc)"}')
+    print(f'  X32    : {"ENABLED - 192.168.1.5" if X32_OK else "DISABLED (pip install python-osc)"}')
     print('  URL    : http://0.0.0.0:5000')
     print('')
     app.run(host='0.0.0.0', port=5000, debug=False)
