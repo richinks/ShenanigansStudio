@@ -189,7 +189,7 @@
   h1{font-size:1.5rem;font-weight:700;margin:0 0 .35rem}
   .meta{display:flex;gap:.75rem;font-size:.8rem;color:#6b7280;flex-wrap:wrap}
   .hdr-actions{display:flex;gap:.6rem;align-items:center;flex-shrink:0}
-  .notes{color:#9ca3af;font-size:.875rem;margin-bottom:1rem;background:#0f172a;padding:.75rem 1rem;border-radius:.5rem;border-left:3px solid #7c3aed}
+  .notes{color:#9ca3af;font-size:.875rem;margin-bottom:1rem;background:#0f172a;padding:.75rem 1rem;border-radius:.5rem;border-left:3px solid #bf5500}
   .muted{color:#6b7280}
   .empty{margin-top:2rem;text-align:center}
   .del{background:#7f1d1d;color:#fca5a5}
@@ -234,7 +234,7 @@
   .modal-row .artist{font-size:.75rem}
   .modal-row .key{width:3.5rem;font-size:.8rem;flex-shrink:0}
   .modal-row .status.sm{width:4rem;flex-shrink:0}
-  .add-btn{background:#4c1d95;color:#a78bfa;border:none;padding:.3rem .65rem;border-radius:.35rem;cursor:pointer;font-size:1rem;font-weight:700;flex-shrink:0}
-  .add-btn:hover:not(:disabled){background:#7c3aed;color:#fff}
+  .add-btn{background:#5c1a00;color:#e8851a;border:none;padding:.3rem .65rem;border-radius:.35rem;cursor:pointer;font-size:1rem;font-weight:700;flex-shrink:0}
+  .add-btn:hover:not(:disabled){background:#bf5500;color:#fff}
   .add-btn:disabled{opacity:.4}
 </style>

@@ -61,7 +61,7 @@
   .grow{flex:1}
   .sl-name{font-weight:600}
   .sl-venue{color:#9ca3af;font-size:.85rem;margin-top:.15rem}
-  .sl-date{color:#a78bfa;font-size:.875rem}
+  .sl-date{color:#e8851a;font-size:.875rem}
   .arrow{color:#374151}
   .muted{color:#6b7280}
 </style>

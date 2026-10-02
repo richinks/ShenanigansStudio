@@ -34,8 +34,8 @@
   :global(body){font-family:system-ui,sans-serif;background:#030712;color:#fff;min-height:100vh}
   :global(a){color:inherit;text-decoration:none}
   :global(input,select){background:#1f2937;border:1px solid #374151;color:#fff;padding:.5rem .75rem;border-radius:.375rem;width:100%;font-size:.9rem}
-  :global(button){background:#7c3aed;color:#fff;border:none;padding:.5rem 1.25rem;border-radius:.375rem;cursor:pointer;font-size:.9rem}
-  :global(button:hover){background:#6d28d9}
+  :global(button){background:#bf5500;color:#fff;border:none;padding:.5rem 1.25rem;border-radius:.375rem;cursor:pointer;font-size:.9rem}
+  :global(button:hover){background:#9c3d00}
   :global(button:disabled){opacity:.5;cursor:not-allowed}
   :global(table){width:100%;border-collapse:collapse;margin-top:.75rem}
   :global(th,td){padding:.5rem .75rem;text-align:left;border-bottom:1px solid #111827;font-size:.875rem}
@@ -43,7 +43,7 @@
   :global(tr:hover td){background:#0f172a}
   .splash{display:flex;align-items:center;justify-content:center;height:100vh;color:#6b7280;font-size:1.1rem}
   nav{display:flex;align-items:center;gap:1.25rem;padding:.75rem 1.5rem;background:#0f172a;border-bottom:1px solid #1f2937;font-size:.875rem}
-  .brand{font-weight:700;color:#a78bfa;margin-right:auto}
+  .brand{font-weight:700;color:#e8851a;margin-right:auto}
   nav a{color:#9ca3af}
   nav a:hover{color:#fff}
   .signout{background:transparent;color:#6b7280;padding:.25rem .5rem}

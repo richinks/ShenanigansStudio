@@ -15,7 +15,7 @@
     { label:'Total Songs',  key:'total',    color:'#fff',     href:'/songs' },
     { label:'Active',       key:'active',   color:'#4ade80',  href:'/songs' },
     { label:'WIP',          key:'wip',      color:'#facc15',  href:'/songs' },
-    { label:'Setlists',     key:'setlists', color:'#a78bfa',  href:'/setlists' },
+    { label:'Setlists',     key:'setlists', color:'#e8851a',  href:'/setlists' },
   ]
 </script>
 <h1>Dashboard</h1>
