@@ -35,7 +35,7 @@
 {:else}
   <p class="muted">{filtered.length} songs</p>
   <table>
-    <thead><tr><th>Title</th><th>Artist</th><th>Key</th><th>BPM</th><th>Feel</th><th>Status</th><th>Source</th></tr></thead>
+    <thead><tr><th>Title</th><th>Artist</th><th>Key</th><th>BPM</th><th>Length</th><th>Feel</th><th>Status</th><th>Source</th></tr></thead>
     <tbody>
       {#each filtered as s}
         <tr>

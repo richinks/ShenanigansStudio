@@ -88,10 +88,13 @@
   }
 
   function totalTime() {
-    const secs = songs.reduce((acc, s) => acc + (s.duration_sec ?? 0), 0)
-    if (!secs) return '—'
-    const m = Math.floor(secs / 60), s = secs % 60
-    return `${m}m ${s}s`
+    const songSecs = songs.reduce((acc, s) => acc + (s.duration_sec ?? 0), 0)
+    if (!songSecs) return '—'
+    const gaps = Math.max(0, songs.length - 1) * 120
+    const total = songSecs + gaps
+    const fmt = (n) => Math.floor(n/60) + 'm ' + String(n%60).padStart(2,'0') + 's'
+    return fmt(total) + '  (songs ' + fmt(songSecs) + ' + ' + (songs.length - 1) + '×2m gaps)'
+  }m ${s}s`
   }
 
   const sc = { Active: '#4ade80', WIP: '#facc15', Retired: '#6b7280' }
@@ -136,6 +139,7 @@
           </div>
           <span class="key">{s.key ?? '—'}</span>
           <span class="bpm">{s.click_bpm ?? '—'} <span class="muted">BPM</span></span>
+          <span class="len">{s.duration_sec ? String(Math.floor(s.duration_sec/60))+':'+String(s.duration_sec%60).padStart(2,'0') : '—'}</span>
           <span class="status" style="color:{sc[s.status] ?? '#9ca3af'}">{s.status ?? '—'}</span>
           <div class="moves">
             <button class="icon" on:click={() => move(i, -1)} disabled={i === 0} title="Move up">↑</button>
@@ -209,6 +213,7 @@
   .artist{font-size:.8rem;display:block}
   .key{width:4rem;font-size:.85rem;color:#d1d5db;flex-shrink:0}
   .bpm{width:5.5rem;font-size:.85rem;color:#d1d5db;flex-shrink:0}
+  .len{width:3.5rem;font-size:.85rem;color:#d1d5db;flex-shrink:0}
   .status{width:4.5rem;font-size:.8rem;font-weight:600;flex-shrink:0}
   .moves{display:flex;gap:.25rem;flex-shrink:0}
   .icon{background:transparent;color:#6b7280;border:1px solid #1f2937;padding:.25rem .45rem;font-size:.85rem;border-radius:.3rem;cursor:pointer;line-height:1}
