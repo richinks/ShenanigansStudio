@@ -76,6 +76,15 @@
     })
   }
 
+
+  async function saveFx() {
+    if (!currentSong) return
+    fxSaving = true; fxSaved = false
+    const d = await api('/song/fx/save', 'POST', { title: currentSong.title })
+    fxSaving = false
+    if (d?.ok) { fxSaved = true; setTimeout(() => fxSaved = false, 3000) }
+    else alert('FX save failed — is the Show API running?')
+  }
   const play      = () => api('/transport/play')
   const pause     = () => api('/transport/pause')
   const stop      = () => api('/transport/stop')
@@ -151,6 +160,12 @@
           <div class="meta-cell"><span class="label">Count-in</span><span class="value">{currentSong.count_in ?? 4} beats</span></div>
         </div>
         {#if currentSong.notes}<div class="notes">{currentSong.notes}</div>{/if}
+        <div class="fx-row">
+          <button class="save-fx-btn" on:click={saveFx} disabled={fxSaving || !currentSong}>
+            {fxSaving ? 'Saving…' : fxSaved ? '✅ FX Saved!' : '💾 Save FX Preset'}
+          </button>
+          <span class="fx-hint">Saves all track FX states for this song — auto-loaded on next cue</span>
+        </div>
       </div>
     {:else}
       <div class="song-card empty"><p class="muted">No setlist loaded</p></div>
@@ -261,5 +276,12 @@
     animation:blink 1s ease-in-out infinite;z-index:200;
   }
   @keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+
+  .fx-row{display:flex;align-items:center;gap:.75rem;margin-top:.75rem;padding-top:.75rem;border-top:1px solid #1f2937;flex-wrap:wrap}
+  .save-fx-btn{background:#1e3a5f;color:#93c5fd;border:1px solid #1d4ed8;border-radius:.5rem;padding:.5rem 1rem;font-size:.85rem;cursor:pointer;transition:background .15s;white-space:nowrap}
+  .save-fx-btn:hover:not(:disabled){background:#1d4ed8}
+  .save-fx-btn:disabled{opacity:.5;cursor:default}
+  .fx-hint{font-size:.7rem;color:#4b5563;flex:1}
 </style>
+
 

@@ -110,6 +110,7 @@ def song_cue():
 
     if REAPER_OK:
         reaper_call(jump)
+    load_fx_preset(title)  # auto-restore FX preset
     if scene:
         x32_scene(scene)
 
@@ -119,6 +120,97 @@ def song_cue():
 def recall_scene(n):
     return jsonify({'ok': x32_scene(n), 'scene': n})
 
+
+# ── FX Preset Recall ──────────────────────────────────────────────────────────
+import os, json, re
+
+FX_DIR = os.path.join(os.path.dirname(__file__), '..', 'fx_presets')
+os.makedirs(FX_DIR, exist_ok=True)
+
+def song_slug(title):
+    return re.sub(r'[^a-z0-9]+', '_', title.lower()).strip('_')
+
+def save_fx_preset(title):
+    if not REAPER_OK:
+        return False
+    preset = {}
+    try:
+        with reapy.inside_reaper():
+            proj = reapy.Project()
+            for track in proj.tracks:
+                track_name = track.name or f'Track_{track.index}'
+                preset[track_name] = []
+                for fx in track.fxs:
+                    fx_data = {
+                        'name':    fx.name,
+                        'enabled': fx.is_enabled,
+                        'params':  {p.name: p.value for p in fx.params}
+                    }
+                    preset[track_name].append(fx_data)
+        path = os.path.join(FX_DIR, song_slug(title) + '.json')
+        with open(path, 'w') as f:
+            json.dump(preset, f, indent=2)
+        print(f'[FX] Saved preset for "{title}" → {path}')
+        return True
+    except Exception as e:
+        print(f'[FX] Save error: {e}')
+        return False
+
+def load_fx_preset(title):
+    if not REAPER_OK:
+        return False
+    path = os.path.join(FX_DIR, song_slug(title) + '.json')
+    if not os.path.exists(path):
+        print(f'[FX] No preset for "{title}" — skipping')
+        return False
+    try:
+        with open(path) as f:
+            preset = json.load(f)
+        with reapy.inside_reaper():
+            proj = reapy.Project()
+            for track in proj.tracks:
+                track_name = track.name or f'Track_{track.index}'
+                if track_name not in preset:
+                    continue
+                for i, fx in enumerate(track.fxs):
+                    if i >= len(preset[track_name]):
+                        break
+                    fx_data = preset[track_name][i]
+                    fx.is_enabled = fx_data.get('enabled', True)
+                    saved_params = fx_data.get('params', {})
+                    for param in fx.params:
+                        if param.name in saved_params:
+                            try:
+                                param.value = float(saved_params[param.name])
+                            except Exception:
+                                pass
+        print(f'[FX] Loaded preset for "{title}"')
+        return True
+    except Exception as e:
+        print(f'[FX] Load error: {e}')
+        return False
+
+@app.route('/song/fx/save', methods=['POST'])
+def fx_save():
+    data  = request.get_json() or {}
+    title = data.get('title', state.get('current_song', {}).get('title', ''))
+    if not title:
+        return jsonify({'ok': False, 'error': 'No song title'})
+    ok = save_fx_preset(title)
+    return jsonify({'ok': ok, 'title': title, 'slug': song_slug(title)})
+
+@app.route('/song/fx/load', methods=['POST'])
+def fx_load():
+    data  = request.get_json() or {}
+    title = data.get('title', state.get('current_song', {}).get('title', ''))
+    ok = load_fx_preset(title)
+    return jsonify({'ok': ok, 'title': title})
+
+@app.route('/song/fx/list', methods=['GET'])
+def fx_list():
+    files = [f.replace('.json','') for f in os.listdir(FX_DIR) if f.endswith('.json')]
+    return jsonify({'presets': files})
+
 if __name__ == '__main__':
     print('')
     print('  ShenanigansStudio Show API')
@@ -127,3 +219,4 @@ if __name__ == '__main__':
     print('  URL    : http://0.0.0.0:5000')
     print('')
     app.run(host='0.0.0.0', port=5000, debug=False)
+
