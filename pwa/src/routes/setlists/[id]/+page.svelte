@@ -94,7 +94,6 @@
     const total = songSecs + gaps
     const fmt = (n) => Math.floor(n/60) + 'm ' + String(n%60).padStart(2,'0') + 's'
     return fmt(total) + '  (songs ' + fmt(songSecs) + ' + ' + (songs.length - 1) + '×2m gaps)'
-  }m ${s}s`
   }
 
   const sc = { Active: '#4ade80', WIP: '#facc15', Retired: '#6b7280' }
