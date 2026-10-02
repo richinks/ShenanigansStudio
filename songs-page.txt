@@ -1,0 +1,206 @@
+<script>
+  import { onMount } from 'svelte'
+  import { supabase } from '#lib/supabase'
+
+  const ADMIN_EMAIL = 'richreidjr@hotmail.com'
+
+  let songs = [], search = '', statusFilter = 'all', loading = true, err = ''
+  let selected = new Set()
+  let isAdmin = false
+  let showSetlistModal = false
+  let setlists = [], targetSetlist = '', addingToSetlist = false, addMsg = ''
+  let deletingCount = 0, deleteMsg = ''
+
+  onMount(async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    isAdmin = session?.user?.email === ADMIN_EMAIL
+
+    const { data, error } = await supabase.from('songs').select('*').order('title')
+    if (error) err = error.message
+    songs = data ?? []
+    loading = false
+  })
+
+  $: filtered = songs.filter(s =>
+    (statusFilter === 'all' || s.status === statusFilter) &&
+    (!search || s.title?.toLowerCase().includes(search.toLowerCase()) ||
+                s.artist?.toLowerCase().includes(search.toLowerCase()))
+  )
+
+  $: allSelected = filtered.length > 0 && filtered.every(s => selected.has(s.id))
+
+  function toggleAll() {
+    if (allSelected) filtered.forEach(s => selected.delete(s.id))
+    else filtered.forEach(s => selected.add(s.id))
+    selected = new Set(selected)
+  }
+
+  function toggleOne(id) {
+    selected.has(id) ? selected.delete(id) : selected.add(id)
+    selected = new Set(selected)
+  }
+
+  async function openSetlistModal() {
+    const { data } = await supabase.from('setlists').select('*').order('name')
+    setlists = data ?? []
+    targetSetlist = setlists[0]?.id ?? ''
+    addMsg = ''
+    showSetlistModal = true
+  }
+
+  async function addToSetlist() {
+    if (!targetSetlist) return
+    addingToSetlist = true
+    const existing = await supabase
+      .from('setlist_songs')
+      .select('song_id')
+      .eq('setlist_id', targetSetlist)
+    const existingIds = new Set((existing.data ?? []).map(r => r.song_id))
+
+    const rows = [...selected]
+      .filter(id => !existingIds.has(id))
+      .map((id, i) => ({ setlist_id: targetSetlist, song_id: id, position: (existing.data?.length ?? 0) + i }))
+
+    const skipped = [...selected].length - rows.length
+    if (rows.length > 0) {
+      const { error } = await supabase.from('setlist_songs').insert(rows)
+      if (error) { addMsg = '❌ ' + error.message; addingToSetlist = false; return }
+    }
+    addMsg = `✅ Added ${rows.length} song${rows.length !== 1 ? 's' : ''}${skipped > 0 ? ` (${skipped} already in setlist)` : ''}`
+    addingToSetlist = false
+    selected = new Set()
+    setTimeout(() => { showSetlistModal = false; addMsg = '' }, 1500)
+  }
+
+  async function deleteSongs() {
+    if (!confirm(`Permanently delete ${selected.size} song${selected.size !== 1 ? 's' : ''} from the master database? This cannot be undone.`)) return
+    deletingCount = selected.size
+    const ids = [...selected]
+    const { error } = await supabase.from('songs').delete().in('id', ids)
+    if (error) { deleteMsg = '❌ ' + error.message; deletingCount = 0; return }
+    songs = songs.filter(s => !ids.includes(s.id))
+    selected = new Set()
+    deleteMsg = `✅ Deleted ${ids.length} song${ids.length !== 1 ? 's' : ''}`
+    deletingCount = 0
+    setTimeout(() => deleteMsg = '', 3000)
+  }
+
+  const sc = { Active: '#4ade80', WIP: '#facc15', Retired: '#6b7280' }
+</script>
+
+<div class="header">
+  <h1>Song Bible <span class="count">{songs.length}</span></h1>
+  <input bind:value={search} placeholder="Search title or artist…" class="search" />
+  <select bind:value={statusFilter}>
+    <option value="all">All statuses</option>
+    <option value="Active">Active</option>
+    <option value="WIP">WIP</option>
+    <option value="Retired">Retired</option>
+  </select>
+</div>
+
+{#if deleteMsg}<p class="toast">{deleteMsg}</p>{/if}
+
+{#if loading}
+  <p class="muted">Loading…</p>
+{:else if err}
+  <p style="color:#f87171">⚠️ {err}</p>
+{:else}
+  <p class="muted sub">{filtered.length} song{filtered.length !== 1 ? 's' : ''} shown</p>
+  <table>
+    <thead>
+      <tr>
+        <th><input type="checkbox" checked={allSelected} on:change={toggleAll} /></th>
+        <th>Title</th><th>Artist</th><th>Key</th><th>BPM</th><th>Feel</th><th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {#each filtered as s (s.id)}
+        <tr class:sel={selected.has(s.id)} on:click={() => toggleOne(s.id)}>
+          <td on:click|stopPropagation><input type="checkbox" checked={selected.has(s.id)} on:change={() => toggleOne(s.id)} /></td>
+          <td class="title">{s.title}</td>
+          <td class="muted">{s.artist ?? '—'}</td>
+          <td>{s.key ?? '—'}</td>
+          <td>{s.click_bpm ?? '—'}</td>
+          <td class="muted small">{s.feel ?? '—'}</td>
+          <td class="small" style="color:{sc[s.status] ?? '#9ca3af'};font-weight:600">{s.status ?? '—'}</td>
+        </tr>
+      {/each}
+    </tbody>
+  </table>
+{/if}
+
+{#if selected.size > 0}
+  <div class="action-bar">
+    <span class="sel-count">{selected.size} selected</span>
+    <button on:click={openSetlistModal}>＋ Add to Setlist</button>
+    {#if isAdmin}
+      <button class="del" on:click={deleteSongs} disabled={deletingCount > 0}>
+        {deletingCount > 0 ? 'Deleting…' : '🗑 Delete'}
+      </button>
+    {/if}
+    <button class="ghost" on:click={() => selected = new Set()}>Clear</button>
+  </div>
+{/if}
+
+{#if showSetlistModal}
+  <div class="overlay" on:click|self={() => showSetlistModal = false}>
+    <div class="modal">
+      <h2>Add {selected.size} song{selected.size !== 1 ? 's' : ''} to Setlist</h2>
+      {#if setlists.length === 0}
+        <p class="muted">No setlists yet. Create one on the Setlists page first.</p>
+      {:else}
+        <label>Choose setlist
+          <select bind:value={targetSetlist} style="margin-top:.4rem">
+            {#each setlists as sl}
+              <option value={sl.id}>{sl.name}{sl.gig_date ? ' — ' + sl.gig_date : ''}</option>
+            {/each}
+          </select>
+        </label>
+        {#if addMsg}<p class="msg">{addMsg}</p>{/if}
+        <div class="modal-actions">
+          <button on:click={addToSetlist} disabled={addingToSetlist}>
+            {addingToSetlist ? 'Adding…' : 'Add Songs'}
+          </button>
+          <button class="ghost" on:click={() => showSetlistModal = false}>Cancel</button>
+        </div>
+      {/if}
+    </div>
+  </div>
+{/if}
+
+<style>
+  .header{display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem;flex-wrap:wrap}
+  h1{font-size:1.5rem;font-weight:700;margin:0;flex:1;display:flex;align-items:center;gap:.5rem}
+  .count{font-size:.9rem;background:#1f2937;color:#6b7280;padding:.15rem .5rem;border-radius:999px;font-weight:400}
+  .search{max-width:16rem}
+  select{width:10rem}
+  .muted{color:#6b7280}
+  .sub{font-size:.8rem;margin-bottom:.5rem}
+  .small{font-size:.8rem}
+  .title{font-weight:500;color:#f1f5f9}
+  tr{cursor:pointer}
+  tr.sel td{background:#1e1b4b}
+  .toast{color:#4ade80;font-size:.875rem;margin-bottom:.5rem}
+  .msg{font-size:.875rem;margin:.5rem 0}
+
+  /* Action bar */
+  .action-bar{
+    position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);
+    display:flex;align-items:center;gap:.75rem;
+    background:#1f2937;border:1px solid #374151;border-radius:.75rem;
+    padding:.75rem 1.25rem;box-shadow:0 8px 32px rgba(0,0,0,.6);z-index:50;
+  }
+  .sel-count{color:#a78bfa;font-weight:600;font-size:.875rem;margin-right:.25rem}
+  .del{background:#7f1d1d;color:#fca5a5}
+  .del:hover{background:#991b1b}
+  .ghost{background:transparent;color:#6b7280;border:1px solid #374151}
+  .ghost:hover{color:#fff;background:#374151}
+
+  /* Modal */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:100}
+  .modal{background:#111827;border:1px solid #374151;border-radius:.75rem;padding:1.5rem;min-width:320px;max-width:480px;width:90%}
+  .modal h2{font-size:1.1rem;font-weight:700;margin-bottom:1rem}
+  label{display:block;font-size:.85rem;color:#9ca3af;margin-bottom:.75rem}
+  .modal-actions{display:flex;gap:.75rem;margin-top:1rem}
+</style>

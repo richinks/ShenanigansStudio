@@ -1,0 +1,98 @@
+<script>
+  import { onMount } from 'svelte'
+  import { supabase } from '#lib/supabase'
+
+  let setlists = [], loading = true, err = ''
+  let showCreate = false, name = '', gig_date = '', venue = '', notes = '', saving = false
+
+  onMount(async () => {
+    await load()
+  })
+
+  async function load() {
+    loading = true
+    const { data, error } = await supabase
+      .from('setlists')
+      .select('id, name, gig_date, venue, notes, created_at, setlist_songs(count)')
+      .order('gig_date', { ascending: false })
+    if (error) err = error.message
+    setlists = data ?? []
+    loading = false
+  }
+
+  async function create() {
+    if (!name.trim()) return
+    saving = true
+    const { error } = await supabase.from('setlists').insert({ name, gig_date: gig_date || null, venue: venue || null, notes: notes || null })
+    saving = false
+    if (error) { err = error.message; return }
+    name = ''; gig_date = ''; venue = ''; notes = ''
+    showCreate = false
+    await load()
+  }
+
+  function fmt(d) {
+    if (!d) return '—'
+    return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  }
+</script>
+
+<div class="header">
+  <h1>Setlists</h1>
+  <button on:click={() => showCreate = !showCreate}>＋ New Setlist</button>
+</div>
+
+{#if showCreate}
+  <div class="form">
+    <input bind:value={name} placeholder="Setlist name *" />
+    <input bind:value={gig_date} type="date" />
+    <input bind:value={venue} placeholder="Venue" />
+    <input bind:value={notes} placeholder="Notes" />
+    <div class="form-actions">
+      <button on:click={create} disabled={saving || !name.trim()}>{saving ? 'Saving…' : 'Create'}</button>
+      <button class="ghost" on:click={() => showCreate = false}>Cancel</button>
+    </div>
+  </div>
+{/if}
+
+{#if err}<p style="color:#f87171">⚠️ {err}</p>{/if}
+
+{#if loading}
+  <p class="muted">Loading…</p>
+{:else if setlists.length === 0}
+  <p class="muted">No setlists yet. Create one above.</p>
+{:else}
+  <div class="grid">
+    {#each setlists as sl}
+      <a href="/setlists/{sl.id}" class="card">
+        <div class="card-top">
+          <span class="card-name">{sl.name}</span>
+          <span class="badge">{sl.setlist_songs?.[0]?.count ?? 0} songs</span>
+        </div>
+        <div class="card-meta">
+          {#if sl.gig_date}<span>📅 {fmt(sl.gig_date)}</span>{/if}
+          {#if sl.venue}<span>📍 {sl.venue}</span>{/if}
+        </div>
+        {#if sl.notes}<p class="card-notes">{sl.notes}</p>{/if}
+      </a>
+    {/each}
+  </div>
+{/if}
+
+<style>
+  .header{display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem}
+  h1{font-size:1.5rem;font-weight:700;margin:0;flex:1}
+  .muted{color:#6b7280}
+  .form{background:#0f172a;border:1px solid #1f2937;border-radius:.5rem;padding:1rem;margin-bottom:1.25rem;display:flex;flex-direction:column;gap:.6rem;max-width:480px}
+  .form-actions{display:flex;gap:.6rem}
+  .ghost{background:transparent;color:#6b7280;border:1px solid #374151}
+  .ghost:hover{color:#fff;background:#374151}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem}
+  .card{background:#0f172a;border:1px solid #1f2937;border-radius:.75rem;padding:1.25rem;text-decoration:none;display:block;transition:border-color .15s}
+  .card:hover{border-color:#7c3aed}
+  .card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem}
+  .card-name{font-weight:700;font-size:1rem;color:#f1f5f9}
+  .badge{background:#1f2937;color:#a78bfa;font-size:.75rem;padding:.2rem .6rem;border-radius:999px;font-weight:600}
+  .card-meta{display:flex;gap:.75rem;font-size:.8rem;color:#6b7280;flex-wrap:wrap}
+  .card-notes{font-size:.8rem;color:#6b7280;margin-top:.5rem;margin-bottom:0}
+</style>
