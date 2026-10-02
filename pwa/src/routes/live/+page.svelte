@@ -130,6 +130,7 @@
         {#each setlists as sl}<option value={sl.id}>{sl.name}</option>{/each}
       </select>
       <span class="count">{songs.length}</span>
+      <a href="/setlist/print{activeSetlist ? `?id=${activeSetlist.id}` : ``}" target="_blank" class="print-link" title="Print setlist">🖨️</a>
     </div>
     <ul class="song-list">
       {#each songs as song, i}
@@ -282,7 +283,10 @@
   .save-fx-btn:hover:not(:disabled){background:#1d4ed8}
   .save-fx-btn:disabled{opacity:.5;cursor:default}
   .fx-hint{font-size:.7rem;color:#4b5563;flex:1}
+  .print-link{color:#6b7280;text-decoration:none;font-size:1rem;flex-shrink:0}
+  .print-link:hover{color:#a78bfa}
 </style>
+
 
 
 
