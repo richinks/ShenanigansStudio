@@ -7,7 +7,7 @@
   let currentIdx = 0
   let transport = { playing: false, paused: false, position: '0:00', bpm: '—' }
   let connected = false, connecting = false, apiErr = ''
-  let pollTimer = null, loading = true
+  let pollTimer = null, loading = true`n  let recording = false
 
   $: currentSong = songs[currentIdx] ?? null
   $: prevSong    = songs[currentIdx - 1] ?? null
@@ -82,6 +82,7 @@
   const prev      = () => currentIdx > 0              && cueSong(currentIdx - 1)
   const next      = () => currentIdx < songs.length-1 && cueSong(currentIdx + 1)
   const recallX32 = () => currentSong?.x32_scene && api(/x32/scene/)
+  const record = async () => { recording = !recording; await api(recording ? '/transport/record' : '/transport/stop') }
 
   function saveApiBase() {
     apiBase = apiInput.trim().replace(/\/$/, '')
@@ -95,7 +96,7 @@
   }
 </script>
 
-<div class="conn-bar" class:ok={connected} class:bad={!connected}>
+{#if recording}<div class="rec-indicator">⏺ RECORDING</div>{/if}`n<div class="conn-bar" class:ok={connected} class:bad={!connected}>
   <span class="dot"></span>
   {connected ? Show API connected —  : Show API offline — }
   <button class="gear" on:click={() => { showSettings = !showSettings; apiInput = apiBase }}>⚙</button>
@@ -162,7 +163,10 @@
         <button class="ctrl stop" on:click={stop}>⏹</button>
         <button class="ctrl play" on:click={play} disabled={transport.playing}>▶</button>
         <button class="ctrl"      on:click={pause} disabled={!transport.playing}>⏸</button>
-        <button class="nav" on:click={next} disabled={currentIdx >= songs.length-1 || !songs.length}>⏭</button>
+        <button class="ctrl rec" on:click={record} title={recording ? "Stop recording" : "Record"}>
+        {recording ? '⏹' : '⏺'}
+      </button>
+      <button class="nav" on:click={next} disabled={currentIdx >= songs.length-1 || !songs.length}>⏭</button>
       </div>
       <div class="x32-row">
         <button class="x32-btn" on:click={recallX32} disabled={!currentSong?.x32_scene}>
@@ -247,4 +251,15 @@
     .layout{grid-template-columns:1fr}.sidebar{display:none}
     .song-title{font-size:1.75rem}.song-meta-grid{grid-template-columns:repeat(2,1fr)}
   }
+
+  .ctrl.rec{background:#7f1d1d;color:#fca5a5;border-color:#991b1b}
+  .ctrl.rec:hover{background:#991b1b}
+  .rec-indicator{
+    position:fixed;top:0;left:50%;transform:translateX(-50%);
+    background:#dc2626;color:white;font-size:.75rem;font-weight:700;
+    letter-spacing:.1em;padding:.25rem 1rem;border-radius:0 0 .5rem .5rem;
+    animation:blink 1s ease-in-out infinite;z-index:200;
+  }
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
 </style>
+
