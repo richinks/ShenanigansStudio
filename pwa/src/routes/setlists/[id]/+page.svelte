@@ -88,7 +88,7 @@
   }
 
   function totalTime() {
-    const songSecs = songs.reduce((acc, s) => acc + (s.duration_sec ?? 0), 0)
+    const songSecs = songs.reduce((acc, s) => acc + (s.duration_seconds ?? 0), 0)
     if (!songSecs) return 'â€”'
     const gaps = Math.max(0, songs.length - 1) * 120
     const total = songSecs + gaps
@@ -139,7 +139,7 @@
           </div>
           <span class="key">{s.key ?? 'â€”'}</span>
           <span class="bpm">{s.drummer_click_bpm ?? 'â€”'} <span class="muted">BPM</span></span>
-          <span class="len">{s.duration_sec ? String(Math.floor(s.duration_sec/60))+':'+String(s.duration_sec%60).padStart(2,'0') : 'â€”'}</span>
+          <span class="len">{s.duration_seconds ? String(Math.floor(s.duration_seconds/60))+':'+String(s.duration_seconds%60).padStart(2,'0') : 'â€”'}</span>
           <span class="status" style="color:{sc[s.status] ?? '#9ca3af'}">{s.status ?? 'â€”'}</span>
           <div class="moves">
             <button class="icon" on:click={() => move(i, -1)} disabled={i === 0} title="Move up">â†‘</button>
@@ -153,6 +153,7 @@
 {/if}
 
 {#if showAddModal}
+  <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
   <div class="overlay" on:click|self={() => showAddModal = false}>
     <div class="modal">
       <div class="modal-hdr">

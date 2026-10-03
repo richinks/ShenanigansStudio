@@ -24,16 +24,16 @@
   <form on:submit|preventDefault={create}>
     <div class="row">
       <div class="field grow">
-        <label>Name *</label>
-        <input bind:value={name} placeholder="e.g. Fall Gig 2026" required />
+        <label for="sl_name">Name *</label>
+        <input id="sl_name" bind:value={name} placeholder="e.g. Fall Gig 2026" required />
       </div>
       <div class="field">
-        <label>Date</label>
-        <input type="date" bind:value={gig_date} />
+        <label for="gig_date">Date</label>
+        <input id="gig_date" type="date" bind:value={gig_date} />
       </div>
       <div class="field grow">
-        <label>Venue</label>
-        <input bind:value={venue} placeholder="e.g. The Bottleneck" />
+        <label for="venue">Venue</label>
+        <input id="venue" bind:value={venue} placeholder="e.g. The Bottleneck" />
       </div>
       <button type="submit" disabled={saving}>{saving?'Savingâ€¦':'+ Create'}</button>
     </div>
