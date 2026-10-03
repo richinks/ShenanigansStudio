@@ -32,7 +32,7 @@
   }
 
   function totalRuntime() {
-    var t = songs.reduce(function(s, song){ return s + (song.duration_sec || 0) }, 0)
+    var t = songs.reduce(function(s, song){ return s + (song.duration_seconds || 0) }, 0)
     return fmtDuration(t)
   }
 
@@ -89,9 +89,9 @@
             <td class="col-title"><strong>{song.title}</strong></td>
             <td class="col-artist">{song.artist || ''}</td>
             <td class="col-key">{song.key || ''}</td>
-            <td class="col-bpm">{song.click_bpm || ''}</td>
+            <td class="col-bpm">{song.drummer_click_bpm || ''}</td>
             <td class="col-feel">{song.feel || ''}</td>
-            <td class="col-dur">{fmtDuration(song.duration_sec)}</td>
+            <td class="col-dur">{fmtDuration(song.duration_seconds)}</td>
             <td class="col-notes">{song.notes || ''}</td>
           </tr>
         {/each}
@@ -152,3 +152,4 @@
     .song-table tr:nth-child(even) td{ background:#f5f5f5 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact }
   }
 </style>
+

@@ -47,10 +47,10 @@
       title:        song.title        ?? '',
       artist:       song.artist       ?? '',
       key:          song.key          ?? '',
-      click_bpm:    song.click_bpm    ?? '',
+      drummer_click_bpm:    song.drummer_click_bpm    ?? '',
       feel:         song.feel         ?? '',
       status:       song.status       ?? 'WIP',
-      duration_sec: song.duration_sec ?? '',
+      duration_seconds: song.duration_seconds ?? '',
       notes:        song.notes        ?? '',
     }
   }
@@ -61,10 +61,10 @@
       title:        editForm.title        || null,
       artist:       editForm.artist       || null,
       key:          editForm.key          || null,
-      click_bpm:    editForm.click_bpm    ? Number(editForm.click_bpm)    : null,
+      drummer_click_bpm:    editForm.drummer_click_bpm    ? Number(editForm.drummer_click_bpm)    : null,
       feel:         editForm.feel         || null,
       status:       editForm.status       || null,
-      duration_sec: editForm.duration_sec ? Number(editForm.duration_sec) : null,
+      duration_seconds: editForm.duration_seconds ? Number(editForm.duration_seconds) : null,
       notes:        editForm.notes        || null,
       updated_at:   new Date().toISOString(),
     }
@@ -169,7 +169,7 @@
           <td class="title">{s.title}</td>
           <td class="muted">{s.artist ?? 'â€”'}</td>
           <td>{s.key ?? 'â€”'}</td>
-          <td>{s.click_bpm ?? 'â€”'}</td>
+          <td>{s.drummer_click_bpm ?? 'â€”'}</td>
           <td class="muted small">{s.feel ?? 'â€”'}</td>
           <td class="small" style="color:{sc[s.status] ?? '#9ca3af'};font-weight:600">{s.status ?? 'â€”'}</td>
           {#if isAdmin}
@@ -195,6 +195,7 @@
 {/if}
 
 {#if showSetlistModal}
+  <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
   <div class="overlay" on:click|self={() => showSetlistModal = false}>
     <div class="modal">
       <h2>Add {selected.size} song{selected.size !== 1 ? 's' : ''} to Setlist</h2>
@@ -221,6 +222,7 @@
 {/if}
 
 {#if editSong}
+  <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
   <div class="overlay" on:click|self={() => editSong = null}>
     <div class="modal wide">
       <h2>Edit â€” {editSong.title}</h2>
@@ -228,9 +230,9 @@
         <label>Title<input bind:value={editForm.title} /></label>
         <label>Artist<input bind:value={editForm.artist} /></label>
         <label>Key<input bind:value={editForm.key} /></label>
-        <label>Click BPM<input type="number" bind:value={editForm.click_bpm} /></label>
+        <label>Click BPM<input type="number" bind:value={editForm.drummer_click_bpm} /></label>
         <label>Feel<input bind:value={editForm.feel} /></label>
-        <label>Duration (sec)<input type="number" bind:value={editForm.duration_sec} /></label>
+        <label>Duration (sec)<input type="number" bind:value={editForm.duration_seconds} /></label>
         <label>Status
           <select bind:value={editForm.status}>
             <option value="Active">Active</option>
@@ -290,5 +292,6 @@
   .new-sl-form{display:flex;flex-direction:column;gap:.5rem}
   .err-msg{color:#f87171;font-size:.8rem;margin:.25rem 0}
 </style>
+
 
 

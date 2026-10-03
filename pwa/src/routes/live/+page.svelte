@@ -85,7 +85,7 @@
     if (!song) return
     await api('/song/cue', 'POST', {
       song_id: song.id, title: song.title,
-      click_bpm: song.click_bpm, x32_scene: song.x32_scene
+      drummer_click_bpm: song.drummer_click_bpm, x32_scene: song.x32_scene
     })
   }
 
@@ -151,7 +151,7 @@
           <span class="num">{i + 1}</span>
           <span class="info">
             <span class="t">{song.title}</span>
-            <span class="meta">{song.key ?? '?'} Â· {song.click_bpm ?? '?'} BPM</span>
+            <span class="meta">{song.key ?? '?'} Â· {song.drummer_click_bpm ?? '?'} BPM</span>
           </span>
           {#if song.x32_scene}<span class="scene">S{song.x32_scene}</span>{/if}
         </li>
@@ -167,7 +167,7 @@
         <p class="song-artist">{currentSong.artist ?? ''}</p>
         <div class="song-meta-grid">
           <div class="meta-cell"><span class="label">Key</span><span class="value">{currentSong.key ?? 'â€”'}</span></div>
-          <div class="meta-cell"><span class="label">Click BPM</span><span class="value">{currentSong.click_bpm ?? 'â€”'}</span></div>
+          <div class="meta-cell"><span class="label">Click BPM</span><span class="value">{currentSong.drummer_click_bpm ?? 'â€”'}</span></div>
           <div class="meta-cell"><span class="label">Feel</span><span class="value">{currentSong.feel ?? 'â€”'}</span></div>
           <div class="meta-cell"><span class="label">Duration</span><span class="value">{fmtDuration(currentSong.duration_sec)}</span></div>
           <div class="meta-cell"><span class="label">X32 Scene</span><span class="value">{currentSong.x32_scene ?? 'â€”'}</span></div>
@@ -210,14 +210,14 @@
         <div class="neighbour prev" on:click={() => cueSong(currentIdx - 1)}>
           <span class="dir">â† PREV</span>
           <span class="nt">{prevSong.title}</span>
-          <span class="nm">{prevSong.key ?? '?'} Â· {prevSong.click_bpm ?? '?'} BPM</span>
+          <span class="nm">{prevSong.key ?? '?'} Â· {prevSong.drummer_click_bpm ?? '?'} BPM</span>
         </div>
       {:else}<div class="neighbour ghost"></div>{/if}
       {#if nextSong}
         <div class="neighbour next" on:click={() => cueSong(currentIdx + 1)}>
           <span class="dir">NEXT â†’</span>
           <span class="nt">{nextSong.title}</span>
-          <span class="nm">{nextSong.key ?? '?'} Â· {nextSong.click_bpm ?? '?'} BPM</span>
+          <span class="nm">{nextSong.key ?? '?'} Â· {nextSong.drummer_click_bpm ?? '?'} BPM</span>
         </div>
       {:else}<div class="neighbour ghost"></div>{/if}
     </div>
@@ -349,6 +349,7 @@
   .meter-bar-wrap{width:100%;height:72px;background:#111827;border-radius:2px;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden}
   .meter-bar{width:100%;border-radius:2px;transition:height 0.08s ease-out}
   .meter-ch{font-size:.55rem;color:#374151;text-align:center;line-height:1}</style>
+
 
 
 

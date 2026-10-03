@@ -50,7 +50,7 @@ if not FADR_DIR.exists():
     sys.exit(1)
 
 print('Loading songs from Supabase...')
-songs = db.table('songs').select('id,title,recording_bpm,click_bpm,key').execute().data or []
+songs = db.table('songs').select('id,title,recording_bpm,drummer_click_bpm,key').execute().data or []
 print('  ' + str(len(songs)) + ' songs loaded\n')
 
 def slug(s):
@@ -120,8 +120,8 @@ for jf in json_files:
     update = {}
     if bpm and (not match['recording_bpm'] or args.overwrite):
         update['recording_bpm'] = bpm
-    if bpm and (not match['click_bpm'] or args.overwrite):
-        update['click_bpm'] = bpm
+    if bpm and (not match['drummer_click_bpm'] or args.overwrite):
+        update['drummer_click_bpm'] = bpm
     if key and (not match['key'] or args.overwrite):
         update['key'] = key
 
@@ -140,3 +140,4 @@ print('  ' + str(skipped) + ' skipped (no data)')
 print('  ' + str(unmatched) + ' unmatched')
 if args.dry_run:
     print('\n  Run without --dry-run to apply changes')
+
