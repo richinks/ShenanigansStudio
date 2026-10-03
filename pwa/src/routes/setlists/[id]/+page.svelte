@@ -1,4 +1,4 @@
-<script>
+﻿<script>
   import { onMount } from 'svelte'
   import { page } from '$app/state'
   import { goto } from '$app/navigation'
@@ -89,35 +89,35 @@
 
   function totalTime() {
     const songSecs = songs.reduce((acc, s) => acc + (s.duration_sec ?? 0), 0)
-    if (!songSecs) return '—'
+    if (!songSecs) return 'â€”'
     const gaps = Math.max(0, songs.length - 1) * 120
     const total = songSecs + gaps
     const fmt = (n) => Math.floor(n/60) + 'm ' + String(n%60).padStart(2,'0') + 's'
-    return fmt(total) + '  (songs ' + fmt(songSecs) + ' + ' + (songs.length - 1) + '×2m gaps)'
+    return fmt(total) + '  (songs ' + fmt(songSecs) + ' + ' + (songs.length - 1) + 'Ã—2m gaps)'
   }
 
   const sc = { Active: '#4ade80', WIP: '#facc15', Retired: '#6b7280' }
 </script>
 
 {#if loading}
-  <p class="muted">Loading…</p>
+  <p class="muted">Loadingâ€¦</p>
 {:else if err}
-  <p style="color:#f87171">⚠️ {err}</p>
+  <p style="color:#f87171">âš ï¸ {err}</p>
 {:else}
   <div class="header">
     <div>
-      <a href="/setlists" class="back">← Setlists</a>
+      <a href="/setlists" class="back">â† Setlists</a>
       <h1>{setlist.name}</h1>
       <div class="meta">
-        {#if setlist.gig_date}<span>📅 {setlist.gig_date}</span>{/if}
-        {#if setlist.venue}<span>📍 {setlist.venue}</span>{/if}
-        <span>🎵 {songs.length} songs</span>
-        <span>⏵ {totalTime()}</span>
+        {#if setlist.gig_date}<span>ðŸ“… {setlist.gig_date}</span>{/if}
+        {#if setlist.venue}<span>ðŸ“ {setlist.venue}</span>{/if}
+        <span>ðŸŽµ {songs.length} songs</span>
+        <span>âµ {totalTime()}</span>
       </div>
     </div>
     <div class="hdr-actions">
-      <button on:click={openAdd}>＋ Add Songs</button>
-      <button class="print-btn" on:click={() => window.print()} title="Print setlist">🖨 Print</button>
+      <button on:click={openAdd}>ï¼‹ Add Songs</button>
+      <button class="print-btn" on:click={() => window.print()} title="Print setlist">ðŸ–¨ Print</button>
       <button class="del" on:click={deleteSetlist}>Delete Setlist</button>
     </div>
   </div>
@@ -127,7 +127,7 @@
   {/if}
 
   {#if songs.length === 0}
-    <p class="muted empty">No songs yet — click "Add Songs" to build this setlist.</p>
+    <p class="muted empty">No songs yet â€” click "Add Songs" to build this setlist.</p>
   {:else}
     <div class="list">
       {#each songs as s, i (s.rowId)}
@@ -135,17 +135,17 @@
           <span class="num">{i + 1}</span>
           <div class="info">
             <span class="title">{s.title}</span>
-            <span class="artist muted">{s.artist ?? '—'}</span>
+            <span class="artist muted">{s.artist ?? 'â€”'}</span>
           </div>
-          <span class="key">{s.key ?? '—'}</span>
-          <span class="bpm">{s.click_bpm ?? '—'} <span class="muted">BPM</span></span>
-          <span class="len">{s.duration_sec ? String(Math.floor(s.duration_sec/60))+':'+String(s.duration_sec%60).padStart(2,'0') : '—'}</span>
-          <span class="status" style="color:{sc[s.status] ?? '#9ca3af'}">{s.status ?? '—'}</span>
+          <span class="key">{s.key ?? 'â€”'}</span>
+          <span class="bpm">{s.drummer_click_bpm ?? 'â€”'} <span class="muted">BPM</span></span>
+          <span class="len">{s.duration_sec ? String(Math.floor(s.duration_sec/60))+':'+String(s.duration_sec%60).padStart(2,'0') : 'â€”'}</span>
+          <span class="status" style="color:{sc[s.status] ?? '#9ca3af'}">{s.status ?? 'â€”'}</span>
           <div class="moves">
-            <button class="icon" on:click={() => move(i, -1)} disabled={i === 0} title="Move up">↑</button>
-            <button class="icon" on:click={() => move(i, 1)} disabled={i === songs.length - 1} title="Move down">↓</button>
+            <button class="icon" on:click={() => move(i, -1)} disabled={i === 0} title="Move up">â†‘</button>
+            <button class="icon" on:click={() => move(i, 1)} disabled={i === songs.length - 1} title="Move down">â†“</button>
           </div>
-          <button class="icon remove" on:click={() => remove(s.rowId, s.id)} title="Remove from setlist">✕</button>
+          <button class="icon remove" on:click={() => remove(s.rowId, s.id)} title="Remove from setlist">âœ•</button>
         </div>
       {/each}
     </div>
@@ -159,7 +159,7 @@
         <h2>Add Songs</h2>
         <button class="ghost sm" on:click={() => showAddModal = false}>Close</button>
       </div>
-      <input bind:value={addSearch} placeholder="Search title or artist…" class="modal-search" />
+      <input bind:value={addSearch} placeholder="Search title or artistâ€¦" class="modal-search" />
       <div class="modal-list">
         {#if filtered.length === 0}
           <p class="muted" style="padding:.75rem">All songs already in this setlist.</p>
@@ -168,12 +168,12 @@
             <div class="modal-row">
               <div class="info">
                 <span class="title">{s.title}</span>
-                <span class="muted artist">{s.artist ?? '—'}</span>
+                <span class="muted artist">{s.artist ?? 'â€”'}</span>
               </div>
-              <span class="key muted">{s.key ?? '—'}</span>
+              <span class="key muted">{s.key ?? 'â€”'}</span>
               <span class="status sm" style="color:{sc[s.status] ?? '#9ca3af'}">{s.status}</span>
               <button class="add-btn" on:click={() => addSong(s)} disabled={adding.has(s.id)}>
-                {adding.has(s.id) ? '…' : '＋'}
+                {adding.has(s.id) ? 'â€¦' : 'ï¼‹'}
               </button>
             </div>
           {/each}
@@ -255,3 +255,4 @@
   }
 
 </style>
+

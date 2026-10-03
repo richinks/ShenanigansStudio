@@ -287,11 +287,12 @@
   .form-grid label{margin-bottom:0}
   .span2{grid-column:1/-1}
   textarea{width:100%;min-height:80px;resize:vertical;margin-top:.25rem}
-  .sl-pick-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem}
-  .new-sl-btn{padding:.35rem .75rem;font-size:.8rem;flex-shrink:0}
-  .new-sl-form{display:flex;flex-direction:column;gap:.5rem}
-  .err-msg{color:#f87171;font-size:.8rem;margin:.25rem 0}
+  :global(.sl-pick-row){display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem}
+  :global(.new-sl-btn){padding:.35rem .75rem;font-size:.8rem;flex-shrink:0}
+  :global(.new-sl-form){display:flex;flex-direction:column;gap:.5rem}
+  :global(.err-msg){color:#f87171;font-size:.8rem;margin:.25rem 0}
 </style>
+
 
 
 
