@@ -1,23 +1,26 @@
 ﻿<script>
   import { onMount } from 'svelte'
   import { supabase } from '#lib/supabase'
-  let lists=[], name='', gig_date='', venue='', saving=false
+  let lists=[], name='', gig_date='', venue='', saving=false, createErr=''
   onMount(async () => {
     const { data } = await supabase.from('setlists').select('*').order('gig_date',{ascending:false})
     lists = data ?? []
   })
   async function create() {
     if (!name.trim()) return
-    saving=true
-    const { data } = await supabase.from('setlists')
-      .insert({ name, gig_date: gig_date||null, venue: venue||null }).select().single()
-    if (data) lists = [data, ...lists]
-    name=''; gig_date=''; venue=''; saving=false
+    saving=true; createErr=''
+    try {
+      const { data, error } = await supabase.from('setlists')
+        .insert({ name, gig_date: gig_date||null, venue: venue||null }).select().single()
+      if (error) { createErr = error.message; return }
+      lists = [data, ...lists]
+      name=''; gig_date=''; venue=''
+    } finally { saving=false }
   }
 </script>
 <h1>Setlists</h1>
 <div class="new-form">
-  <p class="label">New Setlist</p>
+  <p class="label">New Setlist</p>{#if createErr}<p class="create-err">{createErr}</p>{/if}
   <form on:submit|preventDefault={create}>
     <div class="row">
       <div class="field grow">
@@ -66,4 +69,5 @@
   .muted{color:#6b7280}
   .create-err{color:#f87171;font-size:.8rem;margin:.25rem 0 .5rem}
 </style>
+
 
