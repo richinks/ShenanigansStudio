@@ -1,4 +1,4 @@
-<script>
+﻿<script>
   import { onMount } from 'svelte'
   import { supabase } from '#lib/supabase'
   let lists=[], name='', gig_date='', venue='', saving=false
@@ -32,7 +32,7 @@
         <label>Venue</label>
         <input bind:value={venue} placeholder="e.g. The Bottleneck" />
       </div>
-      <button type="submit" disabled={saving}>{saving?'Saving…':'+ Create'}</button>
+      <button type="submit" disabled={saving}>{saving?'Savingâ€¦':'+ Create'}</button>
     </div>
   </form>
 </div>
@@ -43,10 +43,10 @@
       {#if sl.venue}<div class="sl-venue">@ {sl.venue}</div>{/if}
     </div>
     {#if sl.gig_date}<div class="sl-date">{sl.gig_date}</div>{/if}
-    <span class="arrow">→</span>
+    <span class="arrow">â†’</span>
   </a>
 {:else}
-  <p class="muted">No setlists yet — create one above.</p>
+  <p class="muted">No setlists yet â€” create one above.</p>
 {/each}
 <style>
   h1{font-size:1.5rem;font-weight:700;margin-bottom:1.5rem}
@@ -64,4 +64,6 @@
   .sl-date{color:#e8851a;font-size:.875rem}
   .arrow{color:#374151}
   .muted{color:#6b7280}
+  .create-err{color:#f87171;font-size:.8rem;margin:.25rem 0 .5rem}
 </style>
+

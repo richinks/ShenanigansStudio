@@ -1,4 +1,4 @@
-<script>
+﻿<script>
   import { onMount } from 'svelte'
   import { supabase } from '#lib/supabase'
 
@@ -84,6 +84,19 @@
     showSetlistModal = true
   }
 
+
+  async function createNewSetlist() {
+    if (!newSetlistName.trim()) return
+    creatingSetlist = true; createSetlistErr = ''
+    const { data, error } = await supabase
+      .from('setlists')
+      .insert({ name: newSetlistName.trim() }).select().single()
+    if (error) { createSetlistErr = error.message; creatingSetlist = false; return }
+    setlists = [data, ...setlists]
+    targetSetlist = data.id
+    newSetlistName = ''; newSetlistMode = false
+    creatingSetlist = false
+  }
   async function addToSetlist() {
     if (!targetSetlist) return
     addingToSetlist = true
@@ -98,9 +111,9 @@
     const skipped = [...selected].length - rows.length
     if (rows.length > 0) {
       const { error } = await supabase.from('setlist_songs').insert(rows)
-      if (error) { addMsg = '❌ ' + error.message; addingToSetlist = false; return }
+      if (error) { addMsg = 'âŒ ' + error.message; addingToSetlist = false; return }
     }
-    addMsg = `✅ Added ${rows.length} song${rows.length !== 1 ? 's' : ''}${skipped > 0 ? ` (${skipped} already in setlist)` : ''}`
+    addMsg = `âœ… Added ${rows.length} song${rows.length !== 1 ? 's' : ''}${skipped > 0 ? ` (${skipped} already in setlist)` : ''}`
     addingToSetlist = false
     selected = new Set()
     setTimeout(() => { showSetlistModal = false; addMsg = '' }, 1500)
@@ -111,10 +124,10 @@
     deletingCount = selected.size
     const ids = [...selected]
     const { error } = await supabase.from('songs').delete().in('id', ids)
-    if (error) { deleteMsg = '❌ ' + error.message; deletingCount = 0; return }
+    if (error) { deleteMsg = 'âŒ ' + error.message; deletingCount = 0; return }
     songs = songs.filter(s => !ids.includes(s.id))
     selected = new Set()
-    deleteMsg = `✅ Deleted ${ids.length} song${ids.length !== 1 ? 's' : ''}`
+    deleteMsg = `âœ… Deleted ${ids.length} song${ids.length !== 1 ? 's' : ''}`
     deletingCount = 0
     setTimeout(() => deleteMsg = '', 3000)
   }
@@ -124,7 +137,7 @@
 
 <div class="header">
   <h1>Song Bible <span class="count">{songs.length}</span></h1>
-  <input bind:value={search} placeholder="Search title or artist…" class="search" />
+  <input bind:value={search} placeholder="Search title or artistâ€¦" class="search" />
   <select bind:value={statusFilter}>
     <option value="all">All statuses</option>
     <option value="Active">Active</option>
@@ -136,9 +149,9 @@
 {#if deleteMsg}<p class="toast">{deleteMsg}</p>{/if}
 
 {#if loading}
-  <p class="muted">Loading…</p>
+  <p class="muted">Loadingâ€¦</p>
 {:else if err}
-  <p style="color:#f87171">⚠️ {err}</p>
+  <p style="color:#f87171">âš ï¸ {err}</p>
 {:else}
   <p class="muted sub">{filtered.length} song{filtered.length !== 1 ? 's' : ''} shown</p>
   <table>
@@ -154,13 +167,13 @@
         <tr class:sel={selected.has(s.id)} on:click={() => toggleOne(s.id)}>
           <td on:click|stopPropagation><input type="checkbox" checked={selected.has(s.id)} on:change={() => toggleOne(s.id)} /></td>
           <td class="title">{s.title}</td>
-          <td class="muted">{s.artist ?? '—'}</td>
-          <td>{s.key ?? '—'}</td>
-          <td>{s.click_bpm ?? '—'}</td>
-          <td class="muted small">{s.feel ?? '—'}</td>
-          <td class="small" style="color:{sc[s.status] ?? '#9ca3af'};font-weight:600">{s.status ?? '—'}</td>
+          <td class="muted">{s.artist ?? 'â€”'}</td>
+          <td>{s.key ?? 'â€”'}</td>
+          <td>{s.click_bpm ?? 'â€”'}</td>
+          <td class="muted small">{s.feel ?? 'â€”'}</td>
+          <td class="small" style="color:{sc[s.status] ?? '#9ca3af'};font-weight:600">{s.status ?? 'â€”'}</td>
           {#if isAdmin}
-            <td on:click|stopPropagation><button class="edit-btn" on:click={e => openEdit(s, e)}>✏️</button></td>
+            <td on:click|stopPropagation><button class="edit-btn" on:click={e => openEdit(s, e)}>âœï¸</button></td>
           {/if}
         </tr>
       {/each}
@@ -171,10 +184,10 @@
 {#if selected.size > 0}
   <div class="action-bar">
     <span class="sel-count">{selected.size} selected</span>
-    <button on:click={openSetlistModal}>＋ Add to Setlist</button>
+    <button on:click={openSetlistModal}>ï¼‹ Add to Setlist</button>
     {#if isAdmin}
       <button class="del" on:click={deleteSongs} disabled={deletingCount > 0}>
-        {deletingCount > 0 ? 'Deleting…' : '🗑 Delete'}
+        {deletingCount > 0 ? 'Deletingâ€¦' : 'ðŸ—‘ Delete'}
       </button>
     {/if}
     <button class="ghost" on:click={() => selected = new Set()}>Clear</button>
@@ -191,14 +204,14 @@
         <label>Choose setlist
           <select bind:value={targetSetlist} style="margin-top:.4rem">
             {#each setlists as sl}
-              <option value={sl.id}>{sl.name}{sl.gig_date ? ' — ' + sl.gig_date : ''}</option>
+              <option value={sl.id}>{sl.name}{sl.gig_date ? ' â€” ' + sl.gig_date : ''}</option>
             {/each}
           </select>
         </label>
         {#if addMsg}<p class="msg">{addMsg}</p>{/if}
         <div class="modal-actions">
           <button on:click={addToSetlist} disabled={addingToSetlist}>
-            {addingToSetlist ? 'Adding…' : 'Add Songs'}
+            {addingToSetlist ? 'Addingâ€¦' : 'Add Songs'}
           </button>
           <button class="ghost" on:click={() => showSetlistModal = false}>Cancel</button>
         </div>
@@ -210,7 +223,7 @@
 {#if editSong}
   <div class="overlay" on:click|self={() => editSong = null}>
     <div class="modal wide">
-      <h2>Edit — {editSong.title}</h2>
+      <h2>Edit â€” {editSong.title}</h2>
       <div class="form-grid">
         <label>Title<input bind:value={editForm.title} /></label>
         <label>Artist<input bind:value={editForm.artist} /></label>
@@ -228,7 +241,7 @@
         <label class="span2">Notes<textarea bind:value={editForm.notes} rows="3"></textarea></label>
       </div>
       <div class="modal-actions">
-        <button on:click={saveEdit} disabled={editSaving}>{editSaving ? 'Saving…' : 'Save'}</button>
+        <button on:click={saveEdit} disabled={editSaving}>{editSaving ? 'Savingâ€¦' : 'Save'}</button>
         <button class="ghost" on:click={() => editSong = null}>Cancel</button>
       </div>
     </div>
@@ -272,4 +285,9 @@
   .form-grid label{margin-bottom:0}
   .span2{grid-column:1/-1}
   textarea{width:100%;min-height:80px;resize:vertical;margin-top:.25rem}
+  .sl-pick-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem}
+  .new-sl-btn{padding:.35rem .75rem;font-size:.8rem;flex-shrink:0}
+  .new-sl-form{display:flex;flex-direction:column;gap:.5rem}
+  .err-msg{color:#f87171;font-size:.8rem;margin:.25rem 0}
 </style>
+
