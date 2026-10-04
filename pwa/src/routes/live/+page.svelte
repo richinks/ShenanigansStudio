@@ -9,7 +9,7 @@
 
   const unsubReaper = subscribeToReaper((evt) => {
     if (evt.type === 'connected') { reaperOnline = evt.pythonOnline ?? false; }
-    if (evt.type === 'state')     { rState = evt.payload; reaperOnline = evt.payload?.reaper_ok ?? true; }
+    if (evt.type === 'state')     { rState = evt.payload; reaperOnline = true; }
     if (evt.type === 'error')     { reaperOnline = false; }
   });
 
@@ -39,10 +39,17 @@
   // ── Derived display ───────────────────────────────────────────────────────
   const transportLabel = $derived(
     !reaperOnline      ? 'OFFLINE' :
-    false  ? '⏺ REC'   :
+    rState?.recording  ? '⏺ REC'   :
     rState?.playing    ? '▶ PLAY'  :
     rState?.paused     ? '⏸ PAUSE' : '⏹ STOP'
   );
+
+  function formatPos(sec) {
+    if (sec == null) return '--:--';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
 
   function toDb(v) {
     if (v == null) return '---';
@@ -74,13 +81,13 @@
 
   <!-- Current song + transport state -->
   <div class="song-panel">
-    <div class="song-name">{rState?.current_song ?? '—'}</div>
-    <div class="transport-badge" class:playing={rState?.playing} class:recording={false}>
+    <div class="song-name">{rState?.song ?? '—'}</div>
+    <div class="transport-badge" class:playing={rState?.playing} class:recording={rState?.recording}>
       {transportLabel}
     </div>
     <div class="meta-row">
-      <span>⏱ {rState?.position ?? '--:--'}</span>
-      {#if (rState?.bpm && rState.bpm !== '---' ? rState.bpm : null)}
+      <span>⏱ {formatPos(rState?.position)}</span>
+      {#if rState?.bpm}
         <span>♩ {rState.bpm} BPM</span>
       {/if}
       {#if rState?.marker}
