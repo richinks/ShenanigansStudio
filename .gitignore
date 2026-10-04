@@ -42,3 +42,14 @@ setlist-detail-page.txt
 setlists-page.txt
 songs-page.txt
 song-bible/
+__pycache__/
+*.pyc
+*.pyo
+*.wav
+*.mid
+$PROFILE.txt
+install_pages.txt
+setlist-detail-page.txt
+setlists-page.txt
+songs-page.txt
+song-bible/
