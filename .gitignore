@@ -1,0 +1,104 @@
+# =============================================================================
+# Shenanigans Studio — .gitignore
+# SvelteKit + Node.js + pnpm
+# =============================================================================
+
+
+# ─── Environment & Secrets ───────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+# Keep the example template — it has no real secrets
+!.env.example
+
+
+# ─── SvelteKit ───────────────────────────────────────────────────────────────
+.svelte-kit/
+build/
+.vercel/
+.netlify/
+
+
+# ─── Node.js ─────────────────────────────────────────────────────────────────
+node_modules/
+servers/reaper-bridge/node_modules/
+servers/x32-proxy/node_modules/
+servers/fadr-worker/node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+
+# ─── pnpm ────────────────────────────────────────────────────────────────────
+# Keep pnpm-lock.yaml committed for reproducible installs
+# pnpm-lock.yaml
+
+
+# ─── TypeScript ──────────────────────────────────────────────────────────────
+*.tsbuildinfo
+
+
+# ─── Test & Coverage ─────────────────────────────────────────────────────────
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+
+# ─── OS ──────────────────────────────────────────────────────────────────────
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+
+
+# ─── Editors & IDEs ──────────────────────────────────────────────────────────
+# VS Code — keep extensions and settings if your team shares them
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+
+# JetBrains
+.idea/
+*.iml
+
+# Vim / Emacs
+*.swp
+*.swo
+*~
+\#*\#
+
+
+# ─── Supabase CLI ────────────────────────────────────────────────────────────
+supabase/.branches/
+supabase/.temp/
+
+
+# ─── Misc ────────────────────────────────────────────────────────────────────
+*.local
+dist/
+tmp/
+temp/
