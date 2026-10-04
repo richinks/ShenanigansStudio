@@ -13,23 +13,23 @@ const BRIDGE = PUBLIC_REAPER_BRIDGE_URL ?? 'http://localhost:9090';
 
 export const reaper = {
   /** Start playback. */
-  play()              { return _post('/play'); },
+  play()              { return _post('/transport/play'); },
   /** Stop playback. */
-  stop()              { return _post('/stop'); },
+  stop()              { return _post('/transport/stop'); },
   /** Pause playback. */
-  pause()             { return _post('/pause'); },
+  pause()             { return _post('/transport/pause'); },
   /** Start recording. */
-  record()            { return _post('/record'); },
+  record()            { return _post('/transport/record'); },
   /** Load a song by name. @param {string} name */
-  loadSong(name)      { return _post('/song',  { name }); },
+  loadSong(name)      { return _post('/song/cue',  { name }); },
   /** Jump to a marker by name or number. */
-  gotoMarker(marker)  { return _post('/marker', { marker }); },
+  gotoMarker(marker)  { return _post('/transport/marker', { marker }); },
   /** Get current REAPER transport + track state. */
-  getState()          { return _get('/state'); },
+  getState()          { return _get('/status'); },
   /** Get full track list. */
-  getTracks()         { return _get('/tracks'); },
+  getTracks()         { return _get('/song/fx/list'); },
   /** Bridge health (includes pythonOnline flag). */
-  health()            { return _get('/health'); },
+  health()            { return _get('/status'); },
 };
 
 // ─── SSE subscription ────────────────────────────────────────────────────────

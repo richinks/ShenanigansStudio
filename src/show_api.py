@@ -215,7 +215,8 @@ def fx_list():
 # ── X32 Meter Subscription + SSE ─────────────────────────────────────────────
 import struct, threading
 from flask import Response
-from pythonosc import dispatcher as osc_disp, server as osc_srv
+from pythonosc import dispatcher as osc_disp
+from pythonosc import osc_server as osc_srv
 
 meter_state = {'ch': [0.0] * 32, 'bus': [0.0] * 16, 'lr': [0.0, 0.0]}
 _meter_lock = threading.Lock()

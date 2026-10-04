@@ -71,7 +71,7 @@ function broadcast(type, data) {
 // ─── Python state poller ─────────────────────────────────────────────────────
 async function pollPython() {
   try {
-    const res  = await fetch(`${PYTHON_URL}/state`, { signal: AbortSignal.timeout(POLL_MS - 50) });
+    const res  = await fetch(`${PYTHON_URL}/status`, { signal: AbortSignal.timeout(POLL_MS - 50) });
     const json = await res.text();
 
     if (!pythonOnline) {
