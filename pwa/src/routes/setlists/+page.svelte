@@ -1,73 +1,100 @@
 ﻿<script>
-  import { onMount } from 'svelte'
-  import { supabase } from '#lib/supabase'
-  let lists=[], name='', gig_date='', venue='', saving=false, createErr=''
-  onMount(async () => {
-    const { data } = await supabase.from('setlists').select('*').order('gig_date',{ascending:false})
-    lists = data ?? []
-  })
-  async function create() {
-    if (!name.trim()) return
-    saving=true; createErr=''
-    try {
-      const { data, error } = await supabase.from('setlists')
-        .insert({ name, gig_date: gig_date||null, venue: venue||null }).select().single()
-      if (error) { createErr = error.message; return }
-      lists = [data, ...lists]
-      name=''; gig_date=''; venue=''
-    } finally { saving=false }
+  import { onMount } from 'svelte';
+  import { supabase } from '$lib/supabase.js';
+
+  let setlists = [];
+  let loading = true;
+  let errorMessage = '';
+
+  async function loadSetlists() {
+    loading = true;
+    errorMessage = '';
+
+    const { data, error } = await supabase
+      .from('setlists')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      errorMessage = error.message;
+      loading = false;
+      return;
+    }
+
+    setlists = data || [];
+    loading = false;
   }
+
+  onMount(() => {
+    loadSetlists();
+  });
 </script>
-<h1>Setlists</h1>
-<div class="new-form">
-  <p class="label">New Setlist</p>{#if createErr}<p class="create-err">{createErr}</p>{/if}
-  <form on:submit|preventDefault={create}>
-    <div class="row">
-      <div class="field grow">
-        <label for="sl_name">Name *</label>
-        <input id="sl_name" bind:value={name} placeholder="e.g. Fall Gig 2026" required />
-      </div>
-      <div class="field">
-        <label for="gig_date">Date</label>
-        <input id="gig_date" type="date" bind:value={gig_date} />
-      </div>
-      <div class="field grow">
-        <label for="venue">Venue</label>
-        <input id="venue" bind:value={venue} placeholder="e.g. The Bottleneck" />
-      </div>
-      <button type="submit" disabled={saving}>{saving?'Savingâ€¦':'+ Create'}</button>
-    </div>
-  </form>
-</div>
-{#each lists as sl}
-  <a class="row-item" href="/setlists/{sl.id}">
-    <div class="grow">
-      <div class="sl-name">{sl.name}</div>
-      {#if sl.venue}<div class="sl-venue">@ {sl.venue}</div>{/if}
-    </div>
-    {#if sl.gig_date}<div class="sl-date">{sl.gig_date}</div>{/if}
-    <span class="arrow">â†’</span>
-  </a>
-{:else}
-  <p class="muted">No setlists yet â€” create one above.</p>
-{/each}
+
 <style>
-  h1{font-size:1.5rem;font-weight:700;margin-bottom:1.5rem}
-  .new-form{background:#0f172a;border:1px solid #1f2937;border-radius:.75rem;padding:1.25rem;margin-bottom:1.5rem}
-  .label{color:#6b7280;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem}
-  .row{display:flex;flex-wrap:wrap;gap:.75rem;align-items:flex-end}
-  .field{display:flex;flex-direction:column;gap:.25rem}
-  .field.grow{flex:1;min-width:10rem}
-  label{font-size:.75rem;color:#6b7280}
-  .row-item{display:flex;align-items:center;gap:1rem;background:#0f172a;border:1px solid #1f2937;border-radius:.75rem;padding:1rem 1.25rem;margin-bottom:.75rem;color:inherit}
-  .row-item:hover{border-color:#374151}
-  .grow{flex:1}
-  .sl-name{font-weight:600}
-  .sl-venue{color:#9ca3af;font-size:.85rem;margin-top:.15rem}
-  .sl-date{color:#e8851a;font-size:.875rem}
-  .arrow{color:#374151}
-  .muted{color:#6b7280}
-  .create-err{color:#f87171;font-size:.8rem;margin:.25rem 0 .5rem}
+  .container {
+    padding: 2rem;
+    color: #fff;
+    font-family: system-ui, sans-serif;
+  }
+
+  h2 {
+    font-size: 2rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .setlist-card {
+    background: #222;
+    border: 1px solid #333;
+    padding: 1.2rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .setlist-card:hover {
+    background: #2d2d2d;
+  }
+
+  .title {
+    font-size: 1.4rem;
+    font-weight: bold;
+  }
+
+  .meta {
+    margin-top: 0.4rem;
+    opacity: 0.7;
+    font-size: 0.9rem;
+  }
+
+  .error {
+    color: #ff6b6b;
+    margin-top: 1rem;
+  }
+
+  .loading {
+    opacity: 0.7;
+    font-size: 1.2rem;
+  }
 </style>
 
+<div class="container">
+  <h2>Setlists</h2>
 
+  {#if loading}
+    <div class="loading">Loading setlists…</div>
+  {:else if errorMessage}
+    <div class="error">{errorMessage}</div>
+  {:else if setlists.length === 0}
+    <div>No setlists found.</div>
+  {:else}
+    {#each setlists as sl}
+      <a href={`/setlists/${sl.id}`} class="setlist-card">
+        <div class="title">{sl.title}</div>
+        <div class="meta">
+          Created: {new Date(sl.created_at).toLocaleString()}
+        </div>
+      </a>
+    {/each}
+  {/if}
+</div>

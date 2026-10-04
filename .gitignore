@@ -1,104 +1,44 @@
-# =============================================================================
-# Shenanigans Studio — .gitignore
-# SvelteKit + Node.js + pnpm
-# =============================================================================
+cd /d/ShenanigansStudio
 
+# Append missing rules to .gitignore
+cat >> .gitignore << 'EOF'
+__pycache__/
+*.pyc
+*.pyo
+stems/
+midi/
+song-bible/
+$PROFILE.txt
+*.wav
+*.mid
+install_pages.txt
+setlist-detail-page.txt
+setlists-page.txt
+songs-page.txt
+EOF
 
-# ─── Environment & Secrets ───────────────────────────────────────────────────
-.env
-.env.local
-.env.*.local
-# Keep the example template — it has no real secrets
-!.env.example
+# Untrack files that were already committed but shouldn't be
+git rm --cached '$PROFILE.txt' 2>/dev/null
+git rm --cached 'stems/test_wav/SS_test_wav_unknown.wav' 2>/dev/null
+git rm --cached 'midi/test_wav/SS_test_wav_unknown.mid' 2>/dev/null
+git rm --cached 'scripts/__pycache__/demucs_pipeline.cpython-312.pyc' 2>/dev/null
+git rm --cached 'scripts/__pycache__/tempo_map.cpython-312.pyc' 2>/dev/null
+git rm --cached 'song-bible/fadr_metadata.json' 2>/dev/null
 
+git add .
+git commit -m "chore: add lib helpers, fix .gitignore, untrack binary/junk files
 
-# ─── SvelteKit ───────────────────────────────────────────────────────────────
-.svelte-kit/
-build/
-.vercel/
-.netlify/
-
-
-# ─── Node.js ─────────────────────────────────────────────────────────────────
-node_modules/
-servers/reaper-bridge/node_modules/
-servers/x32-proxy/node_modules/
-servers/fadr-worker/node_modules/
-
-# Logs
-logs/
-*.log
-npm-debug.log*
-pnpm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Runtime data
-pids/
-*.pid
-*.seed
-*.pid.lock
-
-
-# ─── pnpm ────────────────────────────────────────────────────────────────────
-# Keep pnpm-lock.yaml committed for reproducible installs
-# pnpm-lock.yaml
-
-
-# ─── TypeScript ──────────────────────────────────────────────────────────────
-*.tsbuildinfo
-
-
-# ─── Test & Coverage ─────────────────────────────────────────────────────────
-coverage/
-.nyc_output/
-playwright-report/
-test-results/
-
-
-# ─── OS ──────────────────────────────────────────────────────────────────────
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
-._*
-
-# Windows
-Thumbs.db
-Thumbs.db:encryptable
-ehthumbs.db
-Desktop.ini
-$RECYCLE.BIN/
-
-# Linux
-*~
-
-
-# ─── Editors & IDEs ──────────────────────────────────────────────────────────
-# VS Code — keep extensions and settings if your team shares them
-.vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
-!.vscode/launch.json
-
-# JetBrains
-.idea/
-*.iml
-
-# Vim / Emacs
-*.swp
-*.swo
-*~
-\#*\#
-
-
-# ─── Supabase CLI ────────────────────────────────────────────────────────────
-supabase/.branches/
-supabase/.temp/
-
-
-# ─── Misc ────────────────────────────────────────────────────────────────────
-*.local
-dist/
-tmp/
-temp/
+- pwa/src/lib/fadr.js   — FADR stem job + Supabase helpers
+- pwa/src/lib/reaper.js — Reaper Bridge SSE + command helpers
+- pwa/src/lib/x32.js    — X32 Proxy fader/mute/SSE helpers"
+__pycache__/
+*.pyc
+*.pyo
+*.wav
+*.mid
+$PROFILE.txt
+install_pages.txt
+setlist-detail-page.txt
+setlists-page.txt
+songs-page.txt
+song-bible/
