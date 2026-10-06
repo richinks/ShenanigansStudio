@@ -113,7 +113,7 @@
       const { error } = await supabase.from('setlist_songs').insert(rows)
       if (error) { addMsg = 'âŒ ' + error.message; addingToSetlist = false; return }
     }
-    addMsg = `âœ… Added ${rows.length} song${rows.length !== 1 ? 's' : ''}${skipped > 0 ? ` (${skipped} already in setlist)` : ''}`
+    addMsg = `✅ Added ${rows.length} song${rows.length !== 1 ? 's' : ''}${skipped > 0 ? ` (${skipped} already in setlist)` : ''}`
     addingToSetlist = false
     selected = new Set()
     setTimeout(() => { showSetlistModal = false; addMsg = '' }, 1500)
@@ -127,7 +127,7 @@
     if (error) { deleteMsg = 'âŒ ' + error.message; deletingCount = 0; return }
     songs = songs.filter(s => !ids.includes(s.id))
     selected = new Set()
-    deleteMsg = `âœ… Deleted ${ids.length} song${ids.length !== 1 ? 's' : ''}`
+    deleteMsg = `✅ Deleted ${ids.length} song${ids.length !== 1 ? 's' : ''}`
     deletingCount = 0
     setTimeout(() => deleteMsg = '', 3000)
   }
@@ -184,7 +184,7 @@
 {#if selected.size > 0}
   <div class="action-bar">
     <span class="sel-count">{selected.size} selected</span>
-    <button on:click={openSetlistModal}>ï¼‹ Add to Setlist</button>
+    <button on:click={openSetlistModal}>+ Add to Setlist</button>
     {#if isAdmin}
       <button class="del" on:click={deleteSongs} disabled={deletingCount > 0}>
         {deletingCount > 0 ? 'Deletingâ€¦' : 'ðŸ—‘ Delete'}
