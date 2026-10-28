@@ -3,32 +3,49 @@
   import { goto } from '$app/navigation'
   import { page } from '$app/state'
   import { supabase } from '#lib/supabase'
-  let session = null, loading = true
+
+  const ADMIN_EMAIL = 'richreidjr@hotmail.com'
+  let session = null
+  let loading = true
+  let isAdmin = false
+
   onMount(async () => {
     const { data } = await supabase.auth.getSession()
-    session = data.session; loading = false
+    session = data.session
+    isAdmin = (session?.user?.email || '').toLowerCase() === ADMIN_EMAIL.toLowerCase()
+    loading = false
     if (!session && page.url.pathname !== '/login') goto('/login')
-    supabase.auth.onAuthStateChange((_, s) => {
-      session = s
-      if (!s) goto('/login')
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_, nextSession) => {
+      session = nextSession
+      isAdmin = (nextSession?.user?.email || '').toLowerCase() === ADMIN_EMAIL.toLowerCase()
+      if (!nextSession) goto('/login')
     })
+
+    return () => listener.subscription.unsubscribe()
   })
-  async function signOut() { await supabase.auth.signOut() }
+
+  async function signOut() {
+    await supabase.auth.signOut()
+  }
 </script>
+
 {#if loading}
-  <div class="splash">Loading…</div>
+  <div class="splash">Loading...</div>
 {:else}
   {#if session}
     <nav>
-      <span class="brand">🎸 ShenanigansStudio</span>
+      <span class="brand">ShenanigansStudio</span>
       <a href="/">Dashboard</a>
       <a href="/songs">Songs</a>
       <a href="/setlists">Setlists</a>
+      {#if isAdmin}<a href="/admin/users" class="admin-link">Users</a>{/if}
       <button class="signout" on:click={signOut}>Sign out</button>
     </nav>
   {/if}
   <main><slot /></main>
 {/if}
+
 <style>
   :global(*){box-sizing:border-box;margin:0;padding:0}
   :global(body){font-family:system-ui,sans-serif;background:#030712;color:#fff;min-height:100vh}
@@ -46,7 +63,9 @@
   .brand{font-weight:700;color:#e8851a;margin-right:auto}
   nav a{color:#9ca3af}
   nav a:hover{color:#fff}
+  .admin-link{color:#d8b4fe}
   .signout{background:transparent;color:#6b7280;padding:.25rem .5rem}
   .signout:hover{color:#f87171;background:transparent}
   main{padding:1.5rem;max-width:1200px;margin:0 auto}
+  @media(max-width:640px){nav{gap:.75rem;padding:.75rem}.brand{display:none}main{padding:1rem}}
 </style>
