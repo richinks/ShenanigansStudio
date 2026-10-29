@@ -1,294 +1,76 @@
-import time
-from flask import Flask, jsonify, request
+from __future__ import annotations
+import os,sys,threading
+from pathlib import Path
+from typing import Any,Callable
+from flask import Flask,jsonify,request
 from flask_cors import CORS
-
-app = Flask(__name__)
-CORS(app)
-
-X32_IP   = '192.168.1.200'   # <-- SET YOUR X32 RACK IP HERE
-X32_PORT = 10023
-
-try:
-    import reapy
-    REAPER_OK = True
-except ImportError:
-    REAPER_OK = False
-    print('[WARN] reapy not installed — REAPER control disabled')
-
-try:
-    from pythonosc import udp_client as osc_client
-    _x32 = osc_client.SimpleUDPClient(X32_IP, X32_PORT)
-    X32_OK = True
-except ImportError:
-    X32_OK = False
-    print('[WARN] python-osc not installed — X32 control disabled')
-
-def reaper_call(fn):
-    if not REAPER_OK:
-        return None
+ROOT=Path(__file__).resolve().parents[1]
+SCRIPTS=ROOT/"scripts"
+if str(SCRIPTS) not in sys.path: sys.path.insert(0,str(SCRIPTS))
+from show_project_assembler import build_show_project
+app=Flask(__name__);CORS(app)
+ASSETS_ROOT=Path(os.getenv("SHOW_ASSETS_ROOT",str(ROOT/"reaper-projects"))).resolve()
+SHOW_OUTPUT=Path(os.getenv("SHOW_PROJECT_PATH",str(ROOT/"shows"/"Dirty Diaperz Live Show.RPP"))).resolve()
+try: import reapy
+except ImportError: reapy=None
+LOCK=threading.RLock();STATE_LOCK=threading.RLock();state={"current_song":None,"last_build":None}
+def rc(fn:Callable[[],Any]):
+    if reapy is None:return False,"reapy is not installed"
     try:
-        with reapy.inside_reaper():
-            return fn()
-    except Exception as e:
-        print(f'[REAPER] {e}')
-
-def get_transport():
-    if not REAPER_OK:
-        return {'playing': False, 'paused': False, 'position': '0:00', 'bpm': '---'}
-    try:
-        with reapy.inside_reaper():
-            proj    = reapy.Project()
-            pos_sec = proj.play_position
-            m, s    = int(pos_sec // 60), int(pos_sec % 60)
-            return {
-                'playing':  proj.is_playing,
-                'paused':   proj.is_paused,
-                'position': f'{m}:{s:02d}',
-                'bpm':      round(proj.bpm, 1)
-            }
-    except Exception as e:
-        return {'playing': False, 'paused': False, 'position': '0:00', 'bpm': '---', 'error': str(e)}
-
-def x32_scene(n):
-    if not X32_OK:
-        return False
-    try:
-        _x32.send_message('/load', f'scene_{int(n):03d}')
-        return True
-    except Exception as e:
-        print(f'[X32] {e}')
-        return False
-
-state = {'current_song': None}
-
-@app.route('/status')
+        with LOCK:
+            with reapy.inside_reaper():return True,fn()
+    except Exception as e:return False,f"{type(e).__name__}: {e}"
+def transport():
+    def read():
+        p=reapy.Project();sec=max(0.0,float(p.play_position));s=int(reapy.reascript_api.GetPlayState())
+        return {"playing":bool(s&1),"paused":bool(s&2),"recording":bool(s&4),"position":f"{int(sec//60)}:{int(sec%60):02d}","bpm":round(float(p.bpm),1),"reaper_ok":True}
+    ok,r=rc(read)
+    return r if ok else {"playing":False,"paused":False,"recording":False,"position":"0:00","bpm":"---","reaper_ok":False,"reaper_error":r}
+def act(name):
+    ok,r=rc(lambda:getattr(reapy.Project(),name)())
+    return (jsonify({"ok":ok,"action":name,**({} if ok else {"error":r})}),200 if ok else 503)
+@app.get("/health")
+def health():
+    t=transport();return jsonify({"ok":True,"show_api_ok":True,"reaper_ok":t.get("reaper_ok",False),"reaper_error":t.get("reaper_error"),"assets_root":str(ASSETS_ROOT),"show_project":str(SHOW_OUTPUT)})
+@app.get("/status")
 def status():
-    t = get_transport()
-    return jsonify({**t,
-        'current_song': state['current_song'],
-        'reaper_ok': REAPER_OK,
-        'x32_ok':    X32_OK})
-
-@app.route('/transport/play',  methods=['POST'])
-def play():
-    reaper_call(lambda: reapy.Project().play())
-    return jsonify({'ok': True})
-
-@app.route('/transport/stop',  methods=['POST'])
-def stop():
-    reaper_call(lambda: reapy.Project().stop())
-    return jsonify({'ok': True})
-
-@app.route('/transport/pause', methods=['POST'])
-def pause():
-    reaper_call(lambda: reapy.Project().pause())
-    return jsonify({'ok': True})
-
-@app.route('/transport/record', methods=['POST'])
-def record():
-    reaper_call(lambda: reapy.Project().record())
-    return jsonify({'ok': True})
-
-@app.route('/song/cue', methods=['POST'])
-def song_cue():
-    data  = request.get_json() or {}
-    title = data.get('title', '')
-    scene = data.get('x32_scene')
-    state['current_song'] = data
-
+    with STATE_LOCK:c=state["current_song"];b=state["last_build"]
+    return jsonify({**transport(),"show_api_ok":True,"current_song":c,"last_build":b})
+@app.post("/transport/play")
+def play():return act("play")
+@app.post("/transport/pause")
+def pause():return act("pause")
+@app.post("/transport/stop")
+def stop():return act("stop")
+@app.post("/transport/record")
+def record():return act("record")
+@app.post("/show/build")
+def build():
+    try:r=build_show_project(request.get_json(silent=True) or {},ASSETS_ROOT,SHOW_OUTPUT)
+    except Exception as e:return jsonify({"ok":False,"error":f"{type(e).__name__}: {e}"}),400
+    with STATE_LOCK:state["last_build"]=r
+    return jsonify(r)
+def cue(song_id,title):
     def jump():
-        proj = reapy.Project()
-        proj.stop()
-        for mk in proj.markers:
-            if title.lower() in mk.name.lower():
-                proj.cursor_position = mk.position
-                return
-        for rg in proj.regions:
-            if title.lower() in rg.name.lower():
-                proj.cursor_position = rg.start
-                return
-
-    if REAPER_OK:
-        reaper_call(jump)
-    load_fx_preset(title)  # auto-restore FX preset
-    if scene:
-        x32_scene(scene)
-
-    return jsonify({'ok': True, 'song': title, 'x32_scene': scene})
-
-@app.route('/x32/scene/<int:n>', methods=['POST'])
-def recall_scene(n):
-    return jsonify({'ok': x32_scene(n), 'scene': n})
-
-
-# ── FX Preset Recall ──────────────────────────────────────────────────────────
-import os, json, re
-
-FX_DIR = os.path.join(os.path.dirname(__file__), '..', 'fx_presets')
-os.makedirs(FX_DIR, exist_ok=True)
-
-def song_slug(title):
-    return re.sub(r'[^a-z0-9]+', '_', title.lower()).strip('_')
-
-def save_fx_preset(title):
-    if not REAPER_OK:
-        return False
-    preset = {}
-    try:
-        with reapy.inside_reaper():
-            proj = reapy.Project()
-            for track in proj.tracks:
-                track_name = track.name or f'Track_{track.index}'
-                preset[track_name] = []
-                for fx in track.fxs:
-                    fx_data = {
-                        'name':    fx.name,
-                        'enabled': fx.is_enabled,
-                        'params':  {p.name: p.value for p in fx.params}
-                    }
-                    preset[track_name].append(fx_data)
-        path = os.path.join(FX_DIR, song_slug(title) + '.json')
-        with open(path, 'w') as f:
-            json.dump(preset, f, indent=2)
-        print(f'[FX] Saved preset for "{title}" → {path}')
-        return True
-    except Exception as e:
-        print(f'[FX] Save error: {e}')
-        return False
-
-def load_fx_preset(title):
-    if not REAPER_OK:
-        return False
-    path = os.path.join(FX_DIR, song_slug(title) + '.json')
-    if not os.path.exists(path):
-        print(f'[FX] No preset for "{title}" — skipping')
-        return False
-    try:
-        with open(path) as f:
-            preset = json.load(f)
-        with reapy.inside_reaper():
-            proj = reapy.Project()
-            for track in proj.tracks:
-                track_name = track.name or f'Track_{track.index}'
-                if track_name not in preset:
-                    continue
-                for i, fx in enumerate(track.fxs):
-                    if i >= len(preset[track_name]):
-                        break
-                    fx_data = preset[track_name][i]
-                    fx.is_enabled = fx_data.get('enabled', True)
-                    saved_params = fx_data.get('params', {})
-                    for param in fx.params:
-                        if param.name in saved_params:
-                            try:
-                                param.value = float(saved_params[param.name])
-                            except Exception:
-                                pass
-        print(f'[FX] Loaded preset for "{title}"')
-        return True
-    except Exception as e:
-        print(f'[FX] Load error: {e}')
-        return False
-
-@app.route('/song/fx/save', methods=['POST'])
-def fx_save():
-    data  = request.get_json() or {}
-    title = data.get('title', state.get('current_song', {}).get('title', ''))
-    if not title:
-        return jsonify({'ok': False, 'error': 'No song title'})
-    ok = save_fx_preset(title)
-    return jsonify({'ok': ok, 'title': title, 'slug': song_slug(title)})
-
-@app.route('/song/fx/load', methods=['POST'])
-def fx_load():
-    data  = request.get_json() or {}
-    title = data.get('title', state.get('current_song', {}).get('title', ''))
-    ok = load_fx_preset(title)
-    return jsonify({'ok': ok, 'title': title})
-
-@app.route('/song/fx/list', methods=['GET'])
-def fx_list():
-    files = [f.replace('.json','') for f in os.listdir(FX_DIR) if f.endswith('.json')]
-    return jsonify({'presets': files})
-
-
-# ── X32 Meter Subscription + SSE ─────────────────────────────────────────────
-import struct, threading
-from flask import Response
-from pythonosc import dispatcher as osc_disp, server as osc_srv
-
-meter_state = {'ch': [0.0] * 32, 'bus': [0.0] * 16, 'lr': [0.0, 0.0]}
-_meter_lock = threading.Lock()
-
-def _handle_meter_blob(address, *args):
-    if not args:
-        return
-    blob = args[0]
-    if not isinstance(blob, (bytes, bytearray)):
-        return
-    count = len(blob) // 4
-    vals  = list(struct.unpack(f'<{count}f', blob[:count * 4]))
-    with _meter_lock:
-        if 'meters/1' in str(address):
-            meter_state['ch'] = (vals + [0.0] * 32)[:32]
-        elif 'meters/6' in str(address):
-            meter_state['bus'] = (vals + [0.0] * 16)[:16]
-
-def _meter_renew_loop():
-    import time
-    while True:
-        try:
-            if X32_OK:
-                _x32.send_message('/xremote', [])
-                _x32.send_message('/meters', ['/meters/1', 0])
-                _x32.send_message('/meters', ['/meters/6', 0])
-        except Exception:
-            pass
-        time.sleep(8)
-
-def _start_meter_server():
-    try:
-        d = osc_disp.Dispatcher()
-        d.set_default_handler(_handle_meter_blob)
-        srv = osc_srv.ThreadingOSCUDPServer(('0.0.0.0', 10024), d)
-        threading.Thread(target=_meter_renew_loop, daemon=True).start()
-        print('[METERS] OSC receiver on :10024')
-        srv.serve_forever()
-    except Exception as e:
-        print(f'[METERS] Could not start: {e}')
-
-threading.Thread(target=_start_meter_server, daemon=True).start()
-
-@app.route('/meters/stream')
-def meters_stream():
-    import json, time
-    def generate():
-        while True:
-            with _meter_lock:
-                payload = json.dumps({
-                    'ch':  [round(v, 4) for v in meter_state['ch'][:16]],
-                    'bus': [round(v, 4) for v in meter_state['bus'][:8]],
-                    'lr':  [round(v, 4) for v in meter_state['lr']]
-                })
-            yield f'data: {payload}\n\n'
-            time.sleep(0.1)
-    return Response(generate(), mimetype='text/event-stream',
-                    headers={'Cache-Control': 'no-cache',
-                             'X-Accel-Buffering': 'no',
-                             'Access-Control-Allow-Origin': '*'})
-
-@app.route('/meters/current')
-def meters_current():
-    with _meter_lock:
-        return jsonify(meter_state)
-
-if __name__ == '__main__':
-    print('')
-    print('  ShenanigansStudio Show API')
-    print(f'  REAPER : {"ENABLED" if REAPER_OK else "DISABLED (pip install reapy-boost)"}')
-    print(f'  X32    : {"ENABLED - " + X32_IP if X32_OK else "DISABLED (pip install python-osc)"}')
-    print('  URL    : http://0.0.0.0:5000')
-    print('')
-    app.run(host='0.0.0.0', port=5000, debug=False)
-
-
+        p=reapy.Project()
+        for m in p.markers:
+            parts=(m.name or "").split("|",3)
+            if len(parts)==4 and parts[0]=="LIVE" and (parts[2]==song_id or parts[3].casefold()==title.casefold()):
+                p.stop();p.cursor_position=float(m.position);return {"marker":m.name,"position":float(m.position)}
+        raise LookupError(f"No LIVE marker found for {title}")
+    ok,r=rc(jump)
+    if not ok:raise RuntimeError(r)
+    return r
+@app.post("/song/cue")
+def song_cue():
+    d=request.get_json(silent=True) or {};sid=str(d.get("song_id") or "");title=str(d.get("title") or "").strip()
+    try:m=cue(sid,title)
+    except Exception as e:return jsonify({"ok":False,"error":str(e)}),404
+    selected={"song_id":sid,"title":title,"click_bpm":d.get("click_bpm"),**m}
+    with STATE_LOCK:state["current_song"]=selected
+    return jsonify({"ok":True,"song":selected})
+@app.post("/x32/scene/<int:number>")
+def no_scene(number):return jsonify({"ok":False,"error":"X32 scene recall disabled","scene":number}),409
+if __name__=="__main__":
+    print(f"Show API http://127.0.0.1:5000\nAssets {ASSETS_ROOT}\nShow {SHOW_OUTPUT}")
+    app.run(host="0.0.0.0",port=5000,debug=False,threaded=True,use_reloader=False)

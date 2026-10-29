@@ -13,12 +13,18 @@
   let connecting = false
   let apiErr = ''
   let loading = true
-  let recording = false
   let pollTimer = null
+  let pollInFlight = false
+  let failedPolls = 0
   let meterSource = null
-  let fxSaving = false
-  let fxSaved = false
-  let transport = { playing: false, paused: false, position: '0:00', bpm: '—' }
+  let buildResult = null
+  let transport = {
+    playing: false,
+    paused: false,
+    recording: false,
+    position: '0:00',
+    bpm: '—'
+  }
   let meters = { ch: Array(16).fill(0), bus: Array(8).fill(0), lr: [0, 0] }
 
   $: currentSong = songs[currentIdx] ?? null
@@ -67,46 +73,67 @@
   function startPoll() {
     clearInterval(pollTimer)
     pollStatus()
-    pollTimer = setInterval(pollStatus, 2000)
+    pollTimer = setInterval(pollStatus, 2500)
   }
 
   async function pollStatus() {
+    if (pollInFlight) return
+    pollInFlight = true
+
     try {
       const response = await fetch(`${apiBase}/status`, {
-        signal: AbortSignal.timeout(1500)
+        signal: AbortSignal.timeout(5000)
       })
-      if (!response.ok) throw new Error(response.statusText)
+      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
+
       const data = await response.json()
       transport = {
         playing: Boolean(data.playing),
         paused: Boolean(data.paused),
+        recording: Boolean(data.recording),
         position: data.position ?? '0:00',
         bpm: data.bpm ?? '—'
       }
-      connected = true
-      apiErr = ''
+
+      failedPolls = 0
+      connected = Boolean(data.show_api_ok)
+      apiErr = data.reaper_ok ? '' : (data.reaper_error ?? 'REAPER unavailable')
     } catch (error) {
-      connected = false
+      failedPolls += 1
       apiErr = error?.message ?? 'Unreachable'
+      if (failedPolls >= 2) connected = false
+    } finally {
+      pollInFlight = false
     }
   }
 
   async function callApi(path, method = 'POST', body = null) {
     connecting = true
+
     try {
-      const options = { method, signal: AbortSignal.timeout(3000) }
+      const options = {
+        method,
+        signal: AbortSignal.timeout(8000)
+      }
+
       if (body) {
         options.headers = { 'Content-Type': 'application/json' }
         options.body = JSON.stringify(body)
       }
+
       const response = await fetch(`${apiBase}${path}`, options)
-      if (!response.ok) throw new Error(response.statusText)
       const data = await response.json().catch(() => ({}))
+
+      if (!response.ok || data.ok === false) {
+        throw new Error(data.error ?? `${response.status} ${response.statusText}`)
+      }
+
       connected = true
+      failedPolls = 0
       apiErr = ''
+      await pollStatus()
       return data
     } catch (error) {
-      connected = false
       apiErr = error?.message ?? 'Request failed'
       return null
     } finally {
@@ -116,14 +143,19 @@
 
   function startMeters() {
     stopMeters()
+
     try {
       meterSource = new EventSource(`${apiBase}/meters/stream`)
       meterSource.onmessage = (event) => {
-        try { meters = JSON.parse(event.data) } catch {}
+        try {
+          meters = JSON.parse(event.data)
+        } catch {
+          // Keep the previous meter values if one event is malformed.
+        }
       }
       meterSource.onerror = () => {
         stopMeters()
-        setTimeout(startMeters, 3000)
+        setTimeout(startMeters, 5000)
       }
     } catch {
       meterSource = null
@@ -139,6 +171,7 @@
     apiBase = apiInput.trim().replace(/\/$/, '')
     localStorage.setItem('showApiBase', apiBase)
     showSettings = false
+    failedPolls = 0
     startMeters()
     startPoll()
   }
@@ -153,15 +186,23 @@
     return `${Math.floor(value / 60)}:${String(Math.floor(value % 60)).padStart(2, '0')}`
   }
 
+  async function buildShow() {
+    if (!activeSetlist) return
+    buildResult = await callApi('/show/build', 'POST', {
+      setlist_id: activeSetlist.id, setlist_name: activeSetlist.name,
+      songs: songs.map((s, i) => ({ id:s.id, title:s.title, artist:s.artist, click_bpm:songBpm(s), duration_sec:s.duration_sec, position:i+1 }))
+    })
+  }
+
   async function cueSong(index) {
-    currentIdx = index
     const song = songs[index]
     if (!song) return
+
+    currentIdx = index
     await callApi('/song/cue', 'POST', {
       song_id: song.id,
       title: song.title,
-      click_bpm: songBpm(song),
-      x32_scene: song.x32_scene
+      click_bpm: songBpm(song)
     })
   }
 
@@ -172,50 +213,34 @@
     }
   }
 
-  async function saveFx() {
-    if (!currentSong) return
-    fxSaving = true
-    fxSaved = false
-    const data = await callApi('/song/fx/save', 'POST', { title: currentSong.title })
-    fxSaving = false
-    if (data?.ok) {
-      fxSaved = true
-      setTimeout(() => { fxSaved = false }, 3000)
-    } else {
-      alert('FX save failed. Is the Show API running?')
-    }
-  }
-
   const play = () => callApi('/transport/play')
   const pause = () => callApi('/transport/pause')
   const stop = () => callApi('/transport/stop')
   const prev = () => currentIdx > 0 && cueSong(currentIdx - 1)
   const next = () => currentIdx < songs.length - 1 && cueSong(currentIdx + 1)
-  const recallX32 = () => currentSong?.x32_scene && callApi(`/x32/scene/${currentSong.x32_scene}`)
 
-  async function record() {
-    recording = !recording
-    await callApi(recording ? '/transport/record' : '/transport/stop')
+  async function toggleRecord() {
+    await callApi(transport.recording ? '/transport/stop' : '/transport/record')
   }
 </script>
 
 <svelte:head><title>Live Mode - ShenanigansStudio</title></svelte:head>
 
-{#if recording}<div class="rec-indicator">RECORDING</div>{/if}
+{#if transport.recording}<div class="rec-indicator">RECORDING</div>{/if}
 
 <div class:ok={connected} class:bad={!connected} class="conn-bar">
   <span class="dot"></span>
   <span>{connected ? `Show API connected: ${apiBase}` : `Show API offline: ${apiErr}`}</span>
-  <button class="gear" on:click={() => { showSettings = !showSettings; apiInput = apiBase }}>Settings</button>
+  <button type="button" class="gear" on:click={() => { showSettings = !showSettings; apiInput = apiBase }}>Settings</button>
 </div>
 
 {#if showSettings}
   <div class="settings-panel">
     <label>Show PC API URL
-      <input bind:value={apiInput} placeholder="http://192.168.1.x:5000" />
+      <input bind:value={apiInput} placeholder="http://localhost:5000" />
     </label>
-    <button on:click={saveApiBase}>Save and Connect</button>
-    <button class="ghost" on:click={() => showSettings = false}>Cancel</button>
+    <button type="button" on:click={saveApiBase}>Save and Connect</button>
+    <button type="button" class="ghost" on:click={() => showSettings = false}>Cancel</button>
   </div>
 {/if}
 
@@ -231,8 +256,10 @@
           {/each}
         </select>
         <span class="count">{songs.length}</span>
+        <button type="button" on:click={buildShow}>Build Show Project</button>
       </div>
 
+      {#if buildResult}<div class="build-result">Built {buildResult.song_count} songs: {buildResult.project}</div>{/if}
       <ul class="song-list">
         {#each songs as song, index}
           <li
@@ -259,7 +286,6 @@
                   on:click|stopPropagation
                 >Chart</a>
               {/if}
-              {#if song.x32_scene}<span class="scene">S{song.x32_scene}</span>{/if}
             </span>
           </li>
         {/each}
@@ -293,14 +319,11 @@
             <div class="meta-cell"><span>Click BPM</span><strong>{songBpm(currentSong)}</strong></div>
             <div class="meta-cell"><span>Feel</span><strong>{currentSong.feel ?? '—'}</strong></div>
             <div class="meta-cell"><span>Duration</span><strong>{fmtDuration(currentSong.duration_sec)}</strong></div>
-            <div class="meta-cell"><span>X32 Scene</span><strong>{currentSong.x32_scene ?? '—'}</strong></div>
             <div class="meta-cell"><span>Count-in</span><strong>{currentSong.count_in ?? 4} beats</strong></div>
+            <div class="meta-cell"><span>Mixer</span><strong>Baseline preserved</strong></div>
           </div>
+
           {#if currentSong.notes}<div class="notes">{currentSong.notes}</div>{/if}
-          <div class="fx-row">
-            <button on:click={saveFx} disabled={fxSaving}>{fxSaving ? 'Saving...' : fxSaved ? 'FX Saved' : 'Save FX Preset'}</button>
-            <span>Saves track FX states for this song and loads them on the next cue.</span>
-          </div>
         </section>
       {:else}
         <section class="song-card empty">No setlist loaded</section>
@@ -309,22 +332,22 @@
       <section class="transport">
         <div class="position">{transport.position} · {transport.bpm} BPM</div>
         <div class="controls">
-          <button on:click={prev} disabled={currentIdx === 0}>Prev</button>
-          <button class="stop" on:click={stop}>Stop</button>
-          <button class="play" on:click={play} disabled={transport.playing}>Play</button>
-          <button on:click={pause} disabled={!transport.playing}>Pause</button>
-          <button class="record" on:click={record}>{recording ? 'Stop Rec' : 'Record'}</button>
-          <button on:click={next} disabled={currentIdx >= songs.length - 1}>Next</button>
+          <button type="button" on:click={prev} disabled={currentIdx === 0}>Prev</button>
+          <button type="button" class="stop" on:click={stop}>Stop</button>
+          <button type="button" class="play" on:click={play} disabled={transport.playing && !transport.paused}>Play</button>
+          <button type="button" on:click={pause} disabled={!transport.playing}>Pause</button>
+          <button type="button" class="record" on:click={toggleRecord}>
+            {transport.recording ? 'Stop Rec' : 'Record'}
+          </button>
+          <button type="button" on:click={next} disabled={currentIdx >= songs.length - 1}>Next</button>
         </div>
-        <button class="x32" on:click={recallX32} disabled={!currentSong?.x32_scene}>
-          Recall X32 Scene {currentSong?.x32_scene ?? '—'}
-        </button>
+        <p class="safety-note">Song selection jumps to LIVE markers. X32 scene recall and automatic FX loading are disabled.</p>
         {#if connecting}<span class="muted sending">Sending...</span>{/if}
       </section>
 
       <section class="neighbours">
-        <button on:click={() => cueSong(currentIdx - 1)} disabled={!prevSong}>Previous: {prevSong?.title ?? '—'}</button>
-        <button on:click={() => cueSong(currentIdx + 1)} disabled={!nextSong}>Next: {nextSong?.title ?? '—'}</button>
+        <button type="button" on:click={() => cueSong(currentIdx - 1)} disabled={!prevSong}>Previous: {prevSong?.title ?? '—'}</button>
+        <button type="button" on:click={() => cueSong(currentIdx + 1)} disabled={!nextSong}>Next: {nextSong?.title ?? '—'}</button>
       </section>
 
       <section class="meter-strip">
@@ -337,5 +360,6 @@
 {/if}
 
 <style>
-  .conn-bar{display:flex;align-items:center;gap:.6rem;padding:.5rem 1rem;background:#1f2937;border-bottom:1px solid #374151;font-size:.8rem}.dot{width:9px;height:9px;border-radius:50%;background:#6b7280}.ok .dot{background:#4ade80}.bad .dot{background:#f87171}.gear{margin-left:auto}.settings-panel{display:flex;gap:.75rem;align-items:end;padding:.75rem 1rem;background:#111827}.settings-panel label{flex:1}.layout{display:grid;grid-template-columns:310px 1fr;height:calc(100vh - 90px);overflow:hidden}.sidebar{background:#0d1117;border-right:1px solid #374151;display:flex;flex-direction:column;overflow:hidden}.sidebar-header{display:flex;gap:.5rem;padding:.75rem;border-bottom:1px solid #374151}.sidebar-header select{flex:1}.count{padding:.15rem .45rem;background:#1f2937;border-radius:999px;color:#9ca3af}.song-list{list-style:none;padding:0;margin:0;overflow-y:auto}.song-list li{display:flex;gap:.6rem;align-items:center;padding:.55rem .75rem;border-bottom:1px solid #1f2937;cursor:pointer}.song-list li:hover,.song-list li:focus-visible{background:#1f2937;outline:none}.song-list li.active{background:#1e1b4b;border-left:3px solid #7c3aed}.num{color:#6b7280;width:1.5rem;text-align:right}.info{flex:1;min-width:0}.title{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.meta{display:block;color:#6b7280;font-size:.72rem}.song-actions{display:flex;align-items:center;gap:.35rem}.scene{color:#a78bfa;font-size:.72rem}.mini-chart{background:#3b0764;border:1px solid #7e22ce;color:#e9d5ff;border-radius:.3rem;padding:.22rem .4rem;font-size:.64rem;font-weight:800}.mini-chart:hover{background:#581c87;color:#fff}.stage{overflow-y:auto;padding:1.25rem}.song-card,.transport,.meter-strip{background:#111827;border:1px solid #374151;border-radius:.75rem;padding:1.25rem;margin-bottom:1rem}.song-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}.song-card h1{font-size:2.4rem;margin:.25rem 0}.artist,.muted{color:#9ca3af}.song-number{color:#6b7280;font-size:.78rem}.chart-button{flex:0 0 auto;background:#5b21b6;border:1px solid #8b5cf6;color:#fff;border-radius:.55rem;padding:.7rem 1rem;font-size:.85rem;font-weight:800;box-shadow:0 0 0 3px rgba(139,92,246,.1)}.chart-button:hover{background:#6d28d9}.chart-button:focus-visible{outline:2px solid #c4b5fd;outline-offset:3px}.chart-missing{flex:0 0 auto;color:#6b7280;border:1px solid #374151;border-radius:.45rem;padding:.55rem .75rem;font-size:.75rem}.song-meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin:1rem 0}.meta-cell{background:#0d1117;border:1px solid #1f2937;border-radius:.5rem;padding:.7rem;display:flex;flex-direction:column}.meta-cell span{font-size:.7rem;text-transform:uppercase;color:#6b7280}.meta-cell strong{font-size:1.2rem}.notes{border-top:1px solid #1f2937;padding-top:.75rem;color:#9ca3af}.fx-row{display:flex;align-items:center;gap:.75rem;margin-top:.75rem}.fx-row span{font-size:.72rem;color:#6b7280}.transport{text-align:center}.position{color:#a78bfa;font-weight:700;margin-bottom:.75rem}.controls{display:flex;justify-content:center;gap:.6rem;flex-wrap:wrap}.play{background:#166534;color:#4ade80}.stop,.record{background:#7f1d1d;color:#fca5a5}.x32{margin-top:.75rem;background:#312e81;color:#a5b4fc}.sending{display:block;margin-top:.5rem}.neighbours{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem}.neighbours button{padding:.75rem}.meter-strip{display:flex;gap:1.25rem;overflow-x:auto}.meter-strip h3{font-size:.7rem;color:#6b7280;text-align:center}.meters{display:flex;align-items:end;gap:3px;height:85px}.meter{width:14px;height:72px;background:#0d1117;display:flex;flex-direction:column;justify-content:end;position:relative}.meter>div{background:#22c55e;min-height:1px}.meter.bus>div{background:#818cf8}.meter.main{width:22px}.meter.main>div{background:#a78bfa}.meter span{position:absolute;top:74px;width:100%;font-size:.55rem;color:#6b7280;text-align:center}.rec-indicator{position:fixed;top:0;left:50%;transform:translateX(-50%);background:#dc2626;color:#fff;padding:.25rem 1rem;z-index:200;font-weight:700}.empty{text-align:center}.ghost{background:transparent;border:1px solid #374151}@media(max-width:800px){.layout{grid-template-columns:1fr;height:auto}.sidebar{max-height:40vh;border-right:0;border-bottom:1px solid #374151}.stage{overflow:visible}.song-heading{flex-direction:column}.chart-button,.chart-missing{align-self:stretch;text-align:center}.song-meta-grid{grid-template-columns:repeat(2,1fr)}.song-card h1{font-size:1.75rem}}@media print{.conn-bar,.settings-panel,.sidebar,.transport,.neighbours,.meter-strip,.fx-row{display:none!important}.layout{display:block;height:auto}.stage{padding:0}.song-card{border:0}.chart-button,.chart-missing{display:none}}
+  .conn-bar{display:flex;align-items:center;gap:.6rem;padding:.5rem 1rem;background:#1f2937;border-bottom:1px solid #374151;font-size:.8rem}.dot{width:9px;height:9px;border-radius:50%;background:#6b7280}.ok .dot{background:#4ade80}.bad .dot{background:#f87171}.gear{margin-left:auto}.settings-panel{display:flex;gap:.75rem;align-items:end;padding:.75rem 1rem;background:#111827}.settings-panel label{flex:1}.layout{display:grid;grid-template-columns:310px 1fr;height:calc(100vh - 90px);overflow:hidden}.sidebar{background:#0d1117;border-right:1px solid #374151;display:flex;flex-direction:column;overflow:hidden}.sidebar-header{display:flex;gap:.5rem;padding:.75rem;border-bottom:1px solid #374151}.sidebar-header select{flex:1}.count{padding:.15rem .45rem;background:#1f2937;border-radius:999px;color:#9ca3af}.song-list{list-style:none;padding:0;margin:0;overflow-y:auto}.song-list li{display:flex;gap:.6rem;align-items:center;padding:.55rem .75rem;border-bottom:1px solid #1f2937;cursor:pointer}.song-list li:hover,.song-list li:focus-visible{background:#1f2937;outline:none}.song-list li.active{background:#1e1b4b;border-left:3px solid #7c3aed}.num{color:#6b7280;width:1.5rem;text-align:right}.info{flex:1;min-width:0}.title{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.meta{display:block;color:#6b7280;font-size:.72rem}.song-actions{display:flex;align-items:center;gap:.35rem}.mini-chart{background:#3b0764;border:1px solid #7e22ce;color:#e9d5ff;border-radius:.3rem;padding:.22rem .4rem;font-size:.64rem;font-weight:800}.mini-chart:hover{background:#581c87;color:#fff}.stage{overflow-y:auto;padding:1.25rem}.song-card,.transport,.meter-strip{background:#111827;border:1px solid #374151;border-radius:.75rem;padding:1.25rem;margin-bottom:1rem}.song-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}.song-card h1{font-size:2.4rem;margin:.25rem 0}.artist,.muted{color:#9ca3af}.song-number{color:#6b7280;font-size:.78rem}.chart-button{flex:0 0 auto;background:#5b21b6;border:1px solid #8b5cf6;color:#fff;border-radius:.55rem;padding:.7rem 1rem;font-size:.85rem;font-weight:800;box-shadow:0 0 0 3px rgba(139,92,246,.1)}.chart-button:hover{background:#6d28d9}.chart-button:focus-visible{outline:2px solid #c4b5fd;outline-offset:3px}.chart-missing{flex:0 0 auto;color:#6b7280;border:1px solid #374151;border-radius:.45rem;padding:.55rem .75rem;font-size:.75rem}.song-meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin:1rem 0}.meta-cell{background:#0d1117;border:1px solid #1f2937;border-radius:.5rem;padding:.7rem;display:flex;flex-direction:column}.meta-cell span{font-size:.7rem;text-transform:uppercase;color:#6b7280}.meta-cell strong{font-size:1.2rem}.notes{border-top:1px solid #1f2937;padding-top:.75rem;color:#9ca3af}.transport{text-align:center}.position{color:#a78bfa;font-weight:700;margin-bottom:.75rem}.controls{display:flex;justify-content:center;gap:.6rem;flex-wrap:wrap}.play{background:#166534;color:#4ade80}.stop,.record{background:#7f1d1d;color:#fca5a5}.safety-note{margin:.8rem 0 0;color:#9ca3af;font-size:.75rem}.sending{display:block;margin-top:.5rem}.neighbours{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem}.neighbours button{padding:.75rem}.meter-strip{display:flex;gap:1.25rem;overflow-x:auto}.meter-strip h3{font-size:.7rem;color:#6b7280;text-align:center}.meters{display:flex;align-items:end;gap:3px;height:85px}.meter{width:14px;height:72px;background:#0d1117;display:flex;flex-direction:column;justify-content:end;position:relative}.meter>div{background:#22c55e;min-height:1px}.meter.bus>div{background:#818cf8}.meter.main{width:22px}.meter.main>div{background:#a78bfa}.meter span{position:absolute;top:74px;width:100%;font-size:.55rem;color:#6b7280;text-align:center}.rec-indicator{position:fixed;top:0;left:50%;transform:translateX(-50%);background:#dc2626;color:#fff;padding:.25rem 1rem;z-index:200;font-weight:700}.empty{text-align:center}.ghost{background:transparent;border:1px solid #374151}@media(max-width:800px){.layout{grid-template-columns:1fr;height:auto}.sidebar{max-height:40vh;border-right:0;border-bottom:1px solid #374151}.stage{overflow:visible}.song-heading{flex-direction:column}.chart-button,.chart-missing{align-self:stretch;text-align:center}.song-meta-grid{grid-template-columns:repeat(2,1fr)}.song-card h1{font-size:1.75rem}}@media print{.conn-bar,.settings-panel,.sidebar,.transport,.neighbours,.meter-strip{display:none!important}.layout{display:block;height:auto}.stage{padding:0}.song-card{border:0}.chart-button,.chart-missing{display:none}}
+.build-result{padding:.65rem;color:#bbf7d0;background:#123524;font-size:.72rem;overflow-wrap:anywhere}
 </style>
